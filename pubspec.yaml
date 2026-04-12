@@ -1,0 +1,45 @@
+name: GigMate
+description: "Delivery_plus - Smart Delivery Workforce System"
+
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  http: ^1.2.0
+  geolocator: ^10.1.0
+  url_launcher: ^6.2.5
+  # UI
+  cupertino_icons: ^1.0.8
+
+  # Maps & Location
+  google_maps_flutter: ^2.5.0
+  flutter_polyline_points: ^2.0.0
+
+  # Charts (Admin Analytics)
+  fl_chart: ^0.66.0
+
+  # 🔔 Future use (notifications, optional but useful)
+  flutter_local_notifications: ^16.3.0
+
+  # API (future backend)
+
+  # State management (optional but pro)
+  provider: ^6.1.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+
