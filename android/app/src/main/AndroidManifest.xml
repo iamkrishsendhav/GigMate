@@ -1,6 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- ✅ Location Permission -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
 
@@ -9,10 +8,9 @@
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 
-        <!-- ✅ Google Maps API Key -->
         <meta-data
-            android:name="com.google.android.geo.API_KEY"
-            android:value="AIzaSyCxq77micpjQnkEX22puoKQTxvgi9RgWAI"/>
+        android:name="com.google.android.geo.API_KEY"
+        android:value="AIzaSyAJ3RGbMLiqy6GuQhxuNkFSDFXEFSWvKbo"/>
 
         <activity
             android:name=".MainActivity"

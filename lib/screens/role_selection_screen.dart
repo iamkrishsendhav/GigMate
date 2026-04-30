@@ -250,7 +250,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    "Modern role-based access with clean navigation and responsive UI.",
+                    "Powered by Delivery Plus 🚚",
                     style: TextStyle(
                       fontSize: 13,
                       color: Color(0xFF475569),

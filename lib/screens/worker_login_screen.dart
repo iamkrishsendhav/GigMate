@@ -237,7 +237,7 @@ class _WorkerLoginScreenState extends State<WorkerLoginScreen> {
           ),
           const SizedBox(height: 16),
           const Text(
-            "Powered by Delivery Plus 🚚",
+            "Worker Panel • Delivery Plus 🚀",
             style: TextStyle(
               fontSize: 12,
               color: Color(0xFF94A3B8),
