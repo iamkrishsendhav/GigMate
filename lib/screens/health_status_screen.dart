@@ -1,27 +1,82 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 
-class HealthStatusScreen extends StatelessWidget {
+class HealthStatusScreen extends StatefulWidget {
   const HealthStatusScreen({super.key});
+
+  @override
+  State<HealthStatusScreen> createState() => _HealthStatusScreenState();
+}
+
+class _HealthStatusScreenState extends State<HealthStatusScreen>
+    with SingleTickerProviderStateMixin {
+
+  double heartRate = 70;
+  int steps = 4500;
+  double hydration = 1.2;
+  double fatigue = 0.3;
+  double stress = 0.4;
+
+  late Timer timer;
+
+  @override
+  void initState() {
+    super.initState();
+
+    /// 🔥 LIVE SIMULATION
+    timer = Timer.periodic(Duration(seconds: 2), (_) {
+      setState(() {
+        heartRate += (2 - (4 * (DateTime.now().second % 2)));
+        steps += 50;
+        hydration += 0.01;
+        fatigue += 0.01;
+        stress += 0.01;
+
+        if (fatigue > 1) fatigue = 0.2;
+        if (stress > 1) stress = 0.3;
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    timer.cancel();
+    super.dispose();
+  }
+
+  /// 🔥 HEALTH SCORE LOGIC
+  String get healthStatus {
+    if (fatigue < 0.4 && stress < 0.5) return "Excellent 💪";
+    if (fatigue < 0.7) return "Good 🙂";
+    return "Warning ⚠️";
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Health Dashboard")),
+      backgroundColor: Color(0xFFF4F7FB),
+
+      appBar: AppBar(
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        title: Text("Health Dashboard"),
+      ),
 
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16),
         child: Column(
           children: [
-            // ❤️ TOP SUMMARY CARD
+
+            /// 🔥 TOP CARD
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: EdgeInsets.all(20),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF0D9488), Color(0xFF14B8A6)],
+                gradient: LinearGradient(
+                  colors: [Color(0xFF0F766E), Color(0xFF14B8A6)],
                 ),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: const Row(
+              child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Column(
@@ -30,9 +85,9 @@ class HealthStatusScreen extends StatelessWidget {
                       Text("Overall Health",
                           style: TextStyle(color: Colors.white)),
                       SizedBox(height: 5),
-                      Text("Good 😊",
+                      Text(healthStatus,
                           style: TextStyle(
-                              fontSize: 20,
+                              fontSize: 22,
                               fontWeight: FontWeight.bold,
                               color: Colors.white)),
                     ],
@@ -42,112 +97,151 @@ class HealthStatusScreen extends StatelessWidget {
               ),
             ),
 
-            const SizedBox(height: 20),
+            SizedBox(height: 20),
 
-            // 📊 STATS GRID
-            Row(
-              children: [
-                Expanded(child: _healthCard("Heart Rate", "72 bpm", Icons.favorite)),
-                const SizedBox(width: 10),
-                Expanded(child: _healthCard("Steps", "5200", Icons.directions_walk)),
-              ],
+            /// 🔥 STATS GRID
+            LayoutBuilder(
+              builder: (context, constraints) {
+                return Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    _statCard("Heart Rate", "${heartRate.toInt()} bpm",
+                        Icons.favorite),
+                    _statCard("Steps", "$steps", Icons.directions_walk),
+                    _statCard("Hydration", "${hydration.toStringAsFixed(2)} L",
+                        Icons.water_drop),
+                    _statCard("Calories", "420 kcal",
+                        Icons.local_fire_department),
+                  ],
+                );
+              },
             ),
 
-            const SizedBox(height: 10),
+            SizedBox(height: 25),
 
-            Row(
-              children: [
-                Expanded(child: _healthCard("Calories", "350 kcal", Icons.local_fire_department)),
-                const SizedBox(width: 10),
-                Expanded(child: _healthCard("Hydration", "1.5 L", Icons.water_drop)),
-              ],
-            ),
+            /// 🔥 FATIGUE
+            _progressCard("Fatigue Level", fatigue, Colors.green),
 
-            const SizedBox(height: 25),
+            SizedBox(height: 15),
 
-            // 🧠 FATIGUE LEVEL
-            _progressCard("Fatigue Level", 0.3, Colors.green),
+            /// 🔥 STRESS
+            _progressCard("Stress Level", stress, Colors.orange),
 
-            const SizedBox(height: 15),
+            SizedBox(height: 25),
 
-            _progressCard("Stress Level", 0.5, Colors.orange),
+            /// 🔥 BREAK ALERT
+            if (fatigue > 0.7)
+              _alertCard("⚠️ Take a break!", "You are getting tired"),
 
-            const SizedBox(height: 25),
+            SizedBox(height: 15),
 
-            // 💡 HEALTH TIPS
-            Container(
-              padding: const EdgeInsets.all(15),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(15),
-                boxShadow: const [
-                  BoxShadow(color: Colors.black12, blurRadius: 8)
-                ],
-              ),
-              child: const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text("💡 Health Tips",
-                      style:
-                          TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                  SizedBox(height: 10),
-                  Text("• Drink water regularly 💧"),
-                  Text("• Take short breaks ⏱️"),
-                  Text("• Avoid long continuous driving 🚚"),
-                ],
-              ),
-            ),
+            /// 🔥 WATER ALERT
+            if (hydration < 1.5)
+              _alertCard("💧 Drink Water", "Stay hydrated"),
+
+            SizedBox(height: 25),
+
+            /// 🔥 HEALTH TIPS
+            _tipsCard(),
           ],
         ),
       ),
     );
   }
 
-  // 📊 CARD
-  Widget _healthCard(String title, String value, IconData icon) {
+  /// 🔥 STAT CARD
+  Widget _statCard(String title, String value, IconData icon) {
     return Container(
-      padding: const EdgeInsets.all(15),
+      width: MediaQuery.of(context).size.width / 2 - 22,
+      padding: EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 8)
-        ],
+        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
       ),
       child: Column(
         children: [
-          Icon(icon, color: const Color(0xFF0D9488), size: 30),
-          const SizedBox(height: 5),
+          Icon(icon, color: Color(0xFF0F766E), size: 30),
+          SizedBox(height: 5),
           Text(title),
           Text(value,
-              style:
-                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
         ],
       ),
     );
   }
 
-  // 📈 PROGRESS BAR
+  /// 🔥 PROGRESS CARD
   Widget _progressCard(String title, double value, Color color) {
     return Container(
-      padding: const EdgeInsets.all(15),
+      padding: EdgeInsets.all(15),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(15),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 8)
-        ],
+        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(title),
-          const SizedBox(height: 10),
-          LinearProgressIndicator(
-            value: value,
-            color: color,
-            backgroundColor: Colors.grey.shade200,
+          SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: LinearProgressIndicator(
+              value: value,
+              minHeight: 8,
+              color: color,
+              backgroundColor: Colors.grey.shade200,
+            ),
           ),
+        ],
+      ),
+    );
+  }
+
+  /// 🔥 ALERT CARD
+  Widget _alertCard(String title, String subtitle) {
+    return Container(
+      padding: EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: Colors.red.shade50,
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Row(
+        children: [
+          Icon(Icons.warning, color: Colors.red),
+          SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: TextStyle(fontWeight: FontWeight.bold)),
+              Text(subtitle),
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
+  /// 🔥 TIPS
+  Widget _tipsCard() {
+    return Container(
+      padding: EdgeInsets.all(15),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(15),
+        boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 8)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("💡 Smart Health Tips",
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          SizedBox(height: 10),
+          Text("• Take a break every 2 hours"),
+          Text("• Drink at least 2L water"),
+          Text("• Avoid long continuous driving"),
         ],
       ),
     );

@@ -1,128 +1,187 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:gigmate/services/order_service.dart';
+import 'package:gigmate/models/order_model.dart';
 import 'navigation_screen.dart';
 
-class DeliveryListScreen extends StatelessWidget {
+class DeliveryListScreen extends StatefulWidget {
   const DeliveryListScreen({super.key});
+
+  @override
+  State<DeliveryListScreen> createState() => _DeliveryListScreenState();
+}
+
+class _DeliveryListScreenState extends State<DeliveryListScreen> {
+  final _orderService = OrderService();
+
+  String get uid => FirebaseAuth.instance.currentUser!.uid;
+
+  /// 🔥 STATUS FLOW
+  String _nextStatus(String current) {
+    if (current == "Assigned") return "accepted";
+    if (current == "Accepted") return "picked";
+    if (current == "Picked") return "on_the_way";
+    if (current == "On the way") return "delivered";
+    return "delivered";
+  }
+
+  /// 🎨 STATUS COLOR
+  Color _statusColor(String status) {
+    switch (status) {
+      case "Pending":
+      case "Assigned":
+        return Colors.orange;
+      case "Accepted":
+        return Colors.indigo;
+      case "Picked":
+        return Colors.blue;
+      case "On the way":
+        return Colors.green;
+      case "Delivered":
+        return Colors.teal;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  /// 📊 PROGRESS VALUE
+  double _progress(String status) {
+    switch (status) {
+      case "Pending":
+      case "Assigned":
+        return 0.12;
+      case "Accepted":
+        return 0.2;
+      case "Picked":
+        return 0.5;
+      case "On the way":
+        return 0.8;
+      case "Delivered":
+        return 1.0;
+      default:
+        return 0.1;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF4F7FB),
+
       appBar: AppBar(
-        elevation: 0,
+        title: const Text("My Deliveries"),
         backgroundColor: Colors.white,
         foregroundColor: Colors.black,
-        title: const Text(
-          "My Deliveries",
-          style: TextStyle(fontWeight: FontWeight.w700),
-        ),
+        elevation: 0,
       ),
 
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          _orderCard(context, "Order #101", "Domino's Pizza", "Sector 15",
-              "On the way", "12 min", "2.5 km"),
+      /// 🔥 REALTIME LIST
+      body: StreamBuilder(
+        stream: _orderService.getWorkerOrders(uid),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-          _orderCard(context, "Order #102", "KFC", "City Mall",
-              "Pending", "25 min", "5.1 km"),
+          final docs = snapshot.data!.docs;
 
-          _orderCard(context, "Order #103", "Burger King", "Metro Station",
-              "On the way", "10 min", "1.8 km"),
+          if (docs.isEmpty) {
+            return const Center(child: Text("No deliveries assigned"));
+          }
 
-          _orderCard(context, "Order #104", "Cafe Coffee Day", "Tech Park",
-              "Delivered", "Completed", "3.0 km"),
+          final orders = docs.map((doc) {
+            return OrderModel.fromMap(
+              doc.id,
+              doc.data() as Map<String, dynamic>,
+            );
+          }).toList();
+          orders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
-          _orderCard(context, "Order #105", "Biryani House", "Sector 22",
-              "On the way", "18 min", "4.2 km"),
-
-          _orderCard(context, "Order #106", "McDonald's", "Bus Stand",
-              "Pending", "30 min", "6.5 km"),
-
-          _orderCard(context, "Order #107", "Subway", "Railway Station",
-              "Delivered", "Completed", "2.0 km"),
-
-          _orderCard(context, "Order #108", "Pizza Hut", "Shopping Complex",
-              "On the way", "14 min", "3.7 km"),
-        ],
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: orders.length,
+            itemBuilder: (context, i) {
+              return _orderCard(orders[i]);
+            },
+          );
+        },
       ),
     );
   }
 
-  /// 🔥 ORDER CARD
-  Widget _orderCard(BuildContext context, String id, String pickup,
-      String drop, String status, String eta, String distance) {
+  /// 🔥 ORDER CARD (PREMIUM UI)
+  Widget _orderCard(OrderModel order) {
+    final status = order.statusText;
+    final color = _statusColor(status);
+
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 18),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: const [
+        gradient: const LinearGradient(
+          colors: [Color(0xFF0F766E), Color(0xFF14B8A6)],
+        ),
+        borderRadius: BorderRadius.circular(22),
+        boxShadow: [
           BoxShadow(
-            color: Color(0x14000000),
+            color: Colors.black.withOpacity(0.08),
             blurRadius: 12,
-            offset: Offset(0, 6),
+            offset: const Offset(0, 6),
           )
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          /// 🔝 HEADER
+          /// HEADER
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                id,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A),
-                ),
-              ),
+              Text("Order #${order.id}",
+                  style: const TextStyle(
+                      color: Colors.white, fontWeight: FontWeight.bold)),
               _statusChip(status),
             ],
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
 
-          /// 📍 ROUTE
+          /// PROGRESS
+          LinearProgressIndicator(
+            value: _progress(status),
+            backgroundColor: Colors.white24,
+            color: Colors.white,
+          ),
+
+          const SizedBox(height: 14),
+
+          /// ROUTE
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Column(
-                children: [
-                  const Icon(Icons.circle, size: 10, color: Colors.green),
-                  Container(
-                    width: 2,
-                    height: 40,
-                    color: const Color(0xFFE2E8F0),
-                  ),
-                  const Icon(Icons.location_on, color: Colors.red),
+                children: const [
+                  Icon(Icons.circle, size: 10, color: Colors.white),
+                  SizedBox(height: 4),
+                  SizedBox(
+                      width: 2,
+                      height: 35,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(color: Colors.white54),
+                      )),
+                  SizedBox(height: 4),
+                  Icon(Icons.location_on, color: Colors.white),
                 ],
               ),
-              const SizedBox(width: 12),
-
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      pickup,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      drop,
-                      style: const TextStyle(
-                        color: Color(0xFF64748B),
-                        fontSize: 13,
-                      ),
-                    ),
+                    Text(order.pickup,
+                        style: const TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.w600)),
+                    Text(order.drop,
+                        style: const TextStyle(color: Colors.white70)),
                   ],
                 ),
               ),
@@ -131,107 +190,109 @@ class DeliveryListScreen extends StatelessWidget {
 
           const SizedBox(height: 14),
 
-          /// 📊 INFO
+          /// INFO
           Row(
             children: [
-              _infoChip(Icons.timer_outlined, eta),
+              _chip(Icons.timer, "${order.eta} min"),
               const SizedBox(width: 10),
-              _infoChip(Icons.place_outlined, distance),
+              _chip(Icons.place, "${order.distance} km"),
             ],
           ),
 
           const SizedBox(height: 14),
 
-          /// 🔘 BUTTON
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF0F766E),
-                elevation: 0,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const NavigationScreen(),
+          /// ACTIONS
+          Row(
+            children: [
+              /// TRACK
+              Expanded(
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: Colors.black,
                   ),
-                );
-              },
-              child: const Text(
-                "Track Delivery",
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 14,
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => const NavigationScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text("Track"),
                 ),
               ),
-            ),
+
+              const SizedBox(width: 10),
+
+              /// UPDATE STATUS
+              if (status != "Delivered")
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.black,
+                    ),
+                    onPressed: () async {
+                      if (status == "Assigned") {
+                        await _orderService.acceptOrder(
+                          orderId: order.id,
+                          workerId: uid,
+                        );
+                      } else {
+                        await _orderService.updateOrderStatus(
+                          orderId: order.id,
+                          status: _nextStatus(status),
+                        );
+                      }
+
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text("Status Updated 🚀"),
+                        ),
+                      );
+                    },
+                    child: const Text("Update"),
+                  ),
+                ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  /// 📊 INFO CHIP
-  Widget _infoChip(IconData icon, String text) {
+  /// CHIP
+  Widget _chip(IconData icon, String text) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
+        color: Colors.white24,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
-          Icon(icon, size: 16, color: const Color(0xFF64748B)),
+          Icon(icon, size: 16, color: Colors.white),
           const SizedBox(width: 5),
-          Text(
-            text,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+          Text(text,
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.w600)),
         ],
       ),
     );
   }
 
-  /// 🟢 STATUS CHIP
+  /// STATUS CHIP
   Widget _statusChip(String status) {
-    Color color;
-
-    switch (status) {
-      case "On the way":
-        color = const Color(0xFF16A34A);
-        break;
-      case "Pending":
-        color = const Color(0xFFF59E0B);
-        break;
-      case "Delivered":
-        color = const Color(0xFF2563EB);
-        break;
-      default:
-        color = Colors.grey;
-    }
+    final color = _statusColor(status);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withOpacity(0.2),
         borderRadius: BorderRadius.circular(20),
       ),
-      child: Text(
-        status,
-        style: TextStyle(
-          color: color,
-          fontWeight: FontWeight.w700,
-          fontSize: 12,
-        ),
-      ),
+      child: Text(status,
+          style: TextStyle(color: color, fontWeight: FontWeight.bold)),
     );
   }
 }

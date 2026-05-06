@@ -108,7 +108,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
           ),
           const SizedBox(height: 24),
           const Text(
-            "Delivery Plus",
+            "GigMate",
             style: TextStyle(
               color: Colors.white,
               fontSize: 40,
@@ -250,7 +250,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                 SizedBox(width: 10),
                 Expanded(
                   child: Text(
-                    "Powered by Delivery Plus 🚚",
+                    "Powered by GigMate 🚚",
                     style: TextStyle(
                       fontSize: 13,
                       color: Color(0xFF475569),
