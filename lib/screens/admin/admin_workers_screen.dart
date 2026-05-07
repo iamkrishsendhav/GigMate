@@ -1,9 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-
-// ═══════════════════════════════════════════════════════════════════
-//  AdminWorkersScreen — GigMate Pro
-//  Features: Search · Status filter · Worker cards · Health / SOS
-// ═══════════════════════════════════════════════════════════════════
 
 class AdminWorkersScreen extends StatefulWidget {
   const AdminWorkersScreen({super.key});
@@ -13,77 +9,19 @@ class AdminWorkersScreen extends StatefulWidget {
 }
 
 class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
-
-  static const Color _primary   = Color(0xFF0F766E);
-  static const Color _textDark  = Color(0xFF0F172A);
-  static const Color _textMid   = Color(0xFF475569);
+  static const Color _primary = Color(0xFF0F766E);
+  static const Color _textDark = Color(0xFF0F172A);
+  static const Color _textMid = Color(0xFF475569);
   static const Color _textLight = Color(0xFF94A3B8);
-  static const Color _red       = Color(0xFFEF4444);
-  static const Color _green     = Color(0xFF10B981);
-  static const Color _amber     = Color(0xFFF59E0B);
-  static const Color _blue      = Color(0xFF3B82F6);
+  static const Color _red = Color(0xFFEF4444);
+  static const Color _green = Color(0xFF10B981);
+  static const Color _amber = Color(0xFFF59E0B);
+  static const Color _blue = Color(0xFF3B82F6);
 
-  String _searchQuery    = "";
-  String _selectedFilter = "All";
   final _searchCtrl = TextEditingController();
-
+  String _searchQuery = "";
+  String _selectedFilter = "All";
   final List<String> _filters = ["All", "Active", "On Break", "Offline", "SOS"];
-
-  final List<_Worker> _workers = const [
-    _Worker("W01", "Ravi Kumar",    "ravi@gigmate.com",  "+91 98765 43210",
-        "Active",   "Bike",   "Sector 15",  4.8, 168, "Good",   false, "2.3 km"),
-    _Worker("W02", "Priya Sharma",  "priya@gigmate.com", "+91 87654 32109",
-        "On Break", "Scooter","Sector 22",  4.6, 142, "Good",   false, "0.0 km"),
-    _Worker("W03", "Mohit Verma",   "mohit@gigmate.com", "+91 76543 21098",
-        "Offline",  "Bike",   "—",          4.3, 98,  "Tired",  false, "—"),
-    _Worker("W04", "Arjun Singh",   "arjun@gigmate.com", "+91 65432 10987",
-        "Active",   "Cycle",  "Sector 8",   4.9, 210, "Good",   false, "1.1 km"),
-    _Worker("W05", "Neha Gupta",    "neha@gigmate.com",  "+91 54321 09876",
-        "SOS",      "Bike",   "Sector 30",  4.5, 87,  "Critical", true, "5.2 km"),
-    _Worker("W06", "Deepak Yadav",  "deepak@gigmate.com","+91 43210 98765",
-        "Active",   "Scooter","Sector 11",  4.7, 156, "Good",   false, "3.0 km"),
-  ];
-
-  List<_Worker> get _filtered {
-    return _workers.where((w) {
-      final matchFilter = _selectedFilter == "All" ||
-          w.status == _selectedFilter;
-      final matchSearch = _searchQuery.isEmpty ||
-          w.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          w.id.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          w.location.toLowerCase().contains(_searchQuery.toLowerCase());
-      return matchFilter && matchSearch;
-    }).toList();
-  }
-
-  Color _statusColor(String s) {
-    switch (s) {
-      case "Active":   return _green;
-      case "On Break": return _amber;
-      case "Offline":  return _textLight;
-      case "SOS":      return _red;
-      default:         return _textLight;
-    }
-  }
-
-  IconData _statusIcon(String s) {
-    switch (s) {
-      case "Active":   return Icons.check_circle_rounded;
-      case "On Break": return Icons.coffee_rounded;
-      case "Offline":  return Icons.wifi_off_rounded;
-      case "SOS":      return Icons.emergency_rounded;
-      default:         return Icons.circle_rounded;
-    }
-  }
-
-  Color _healthColor(String h) {
-    switch (h) {
-      case "Good":     return _green;
-      case "Tired":    return _amber;
-      case "Critical": return _red;
-      default:         return _textLight;
-    }
-  }
 
   @override
   void dispose() {
@@ -93,208 +31,198 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final sosList = _workers.where((w) => w.hasSOS).toList();
+    return Material(
+      color: Colors.transparent,
+      child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: FirebaseFirestore.instance
+            .collection('workers')
+            .orderBy('name')
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return _stateMessage(Icons.error_outline, "Failed to load workers");
+          }
+          if (!snapshot.hasData) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-    return Column(
-      children: [
+        final workers = snapshot.data!.docs
+            .map((doc) => _Worker.fromDoc(doc.id, doc.data()))
+            .where(_matches)
+            .toList();
+        final sosList = workers.where((w) => w.hasSOS).toList();
 
-        // ── SOS banner (if any)
-        if (sosList.isNotEmpty)
-          Container(
-            margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-            padding: const EdgeInsets.symmetric(
-                horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              color: _red.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: _red.withOpacity(0.3)),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.emergency_rounded,
-                    color: Color(0xFFEF4444), size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    "🚨 SOS from ${sosList.map((w) => w.name).join(', ')}",
-                    style: const TextStyle(
-                        color: Color(0xFFEF4444),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () =>
-                      setState(() => _selectedFilter = "SOS"),
-                  child: const Text("View",
-                      style: TextStyle(color: Color(0xFFEF4444))),
-                ),
-              ],
-            ),
-          ),
-
-        // ── Search
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-          child: TextField(
-            controller: _searchCtrl,
-            onChanged: (v) => setState(() => _searchQuery = v),
-            decoration: InputDecoration(
-              hintText: "Search workers by name or location...",
-              hintStyle: const TextStyle(
-                  fontSize: 13, color: Color(0xFF94A3B8)),
-              prefixIcon: const Icon(Icons.search_rounded,
-                  color: Color(0xFF94A3B8), size: 20),
-              suffixIcon: _searchQuery.isNotEmpty
-                  ? IconButton(
-                      icon: const Icon(Icons.close_rounded, size: 18),
-                      onPressed: () {
-                        _searchCtrl.clear();
-                        setState(() => _searchQuery = "");
-                      })
-                  : null,
-              filled: true,
-              fillColor: Colors.white,
-              contentPadding: const EdgeInsets.symmetric(vertical: 12),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-              ),
-            ),
-          ),
-        ),
-
-        // ── Filter chips
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: _filters.map((f) {
-                final sel = f == _selectedFilter;
-                final hasSOS = f == "SOS" &&
-                    _workers.any((w) => w.hasSOS);
-                return GestureDetector(
-                  onTap: () => setState(() => _selectedFilter = f),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    margin: const EdgeInsets.only(right: 8),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 8),
-                    decoration: BoxDecoration(
-                      color: sel
-                          ? (f == "SOS" ? _red : _primary)
-                          : Colors.white,
-                      borderRadius: BorderRadius.circular(999),
-                      border: Border.all(
-                          color: sel
-                              ? Colors.transparent
-                              : const Color(0xFFE2E8F0)),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(f,
-                            style: TextStyle(
-                                color: sel ? Colors.white : _textMid,
-                                fontSize: 13,
-                                fontWeight: FontWeight.w600)),
-                        if (hasSOS) ...[
-                          const SizedBox(width: 4),
-                          Container(
-                            width: 7, height: 7,
-                            decoration: const BoxDecoration(
-                                color: Color(0xFFEF4444),
-                                shape: BoxShape.circle),
-                          ),
-                        ]
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-        ),
-
-        // ── Count row
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          return Column(
             children: [
-              Text("${_filtered.length} workers",
-                  style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: _textMid)),
-              GestureDetector(
-                onTap: () => _showAddWorkerDialog(),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: _primary,
-                    borderRadius: BorderRadius.circular(999),
+            if (sosList.isNotEmpty) _sosBanner(sosList),
+            _searchBar(),
+            _filterRow(snapshot.data!.docs
+                .map((doc) => _Worker.fromDoc(doc.id, doc.data()))
+                .any((w) => w.hasSOS)),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text("${workers.length} workers",
+                      style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w800,
+                          color: _textMid)),
+                  TextButton.icon(
+                    onPressed: () => _showAddWorkerDialog(),
+                    icon: const Icon(Icons.person_add_alt_1_rounded, size: 16),
+                    label: const Text("Add Worker"),
+                    style: TextButton.styleFrom(foregroundColor: _primary),
                   ),
-                  child: const Row(
-                    children: [
-                      Icon(Icons.add, color: Colors.white, size: 14),
-                      SizedBox(width: 4),
-                      Text("Add Worker",
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700)),
-                    ],
-                  ),
-                ),
+                ],
               ),
+            ),
+            Expanded(
+              child: workers.isEmpty
+                  ? _stateMessage(Icons.people_outline_rounded,
+                      "No workers found")
+                  : ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                      itemCount: workers.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (_, i) => _workerCard(workers[i]),
+                    ),
+            ),
             ],
-          ),
-        ),
-
-        // ── Worker list
-        Expanded(
-          child: _filtered.isEmpty
-              ? _emptyState()
-              : ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                  itemCount: _filtered.length,
-                  separatorBuilder: (_, __) =>
-                      const SizedBox(height: 12),
-                  itemBuilder: (_, i) => _buildWorkerCard(_filtered[i]),
-                ),
-        ),
-      ],
+          );
+        },
+      ),
     );
   }
 
-  Widget _buildWorkerCard(_Worker w) {
-    final sColor = _statusColor(w.status);
-    final hColor = _healthColor(w.health);
-    final isSOS  = w.hasSOS;
+  bool _matches(_Worker w) {
+    final matchFilter = _selectedFilter == "All" || w.status == _selectedFilter;
+    final q = _searchQuery.toLowerCase();
+    final matchSearch = q.isEmpty ||
+        w.name.toLowerCase().contains(q) ||
+        w.id.toLowerCase().contains(q) ||
+        w.location.toLowerCase().contains(q) ||
+        w.phone.toLowerCase().contains(q);
+    return matchFilter && matchSearch;
+  }
+
+  Widget _sosBanner(List<_Worker> workers) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: _red.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: _red.withOpacity(0.28)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.emergency_rounded, color: _red, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              "SOS active: ${workers.map((w) => w.name).join(', ')}",
+              style: const TextStyle(
+                  color: _red, fontWeight: FontWeight.w800, fontSize: 13),
+            ),
+          ),
+          TextButton(
+            onPressed: () => setState(() => _selectedFilter = "SOS"),
+            child: const Text("View", style: TextStyle(color: _red)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _searchBar() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+      child: TextField(
+        controller: _searchCtrl,
+        onChanged: (v) => setState(() => _searchQuery = v.trim()),
+        decoration: InputDecoration(
+          hintText: "Search workers by name, phone or location",
+          prefixIcon: const Icon(Icons.search_rounded, color: _textLight),
+          suffixIcon: _searchQuery.isEmpty
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.close_rounded, size: 18),
+                  onPressed: () {
+                    _searchCtrl.clear();
+                    setState(() => _searchQuery = "");
+                  },
+                ),
+          filled: true,
+          fillColor: Colors.white,
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _filterRow(bool hasSOS) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: _filters.map((f) {
+            final selected = f == _selectedFilter;
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: ChoiceChip(
+                label: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(f),
+                    if (f == "SOS" && hasSOS) ...[
+                      const SizedBox(width: 5),
+                      Container(
+                        width: 7,
+                        height: 7,
+                        decoration: const BoxDecoration(
+                            color: _red, shape: BoxShape.circle),
+                      ),
+                    ],
+                  ],
+                ),
+                selected: selected,
+                selectedColor: f == "SOS" ? _red : _primary,
+                labelStyle: TextStyle(
+                    color: selected ? Colors.white : _textMid,
+                    fontWeight: FontWeight.w700),
+                onSelected: (_) => setState(() => _selectedFilter = f),
+                backgroundColor: Colors.white,
+                side: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+            );
+          }).toList(),
+        ),
+      ),
+    );
+  }
+
+  Widget _workerCard(_Worker w) {
+    final statusColor = _statusColor(w.status);
+    final healthColor = _healthColor(w.health);
 
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
         border: Border.all(
-            color: isSOS
-                ? _red.withOpacity(0.3)
-                : const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: isSOS
-                ? _red.withOpacity(0.06)
-                : const Color(0x07000000),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
+            color: w.hasSOS ? _red.withOpacity(0.35) : const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(color: Color(0x07000000), blurRadius: 12, offset: Offset(0, 4)),
         ],
       ),
       child: Column(
@@ -303,119 +231,70 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
             padding: const EdgeInsets.all(16),
             child: Row(
               children: [
-                // Avatar with status dot
                 Stack(
                   children: [
                     CircleAvatar(
                       radius: 26,
                       backgroundColor: _primary.withOpacity(0.1),
-                      child: Text(
-                        w.name[0],
-                        style: const TextStyle(
-                            color: _primary,
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800),
-                      ),
+                      backgroundImage:
+                          w.photoUrl.isNotEmpty ? NetworkImage(w.photoUrl) : null,
+                      child: w.photoUrl.isEmpty
+                          ? Text(w.initial,
+                              style: const TextStyle(
+                                  color: _primary,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w900))
+                          : null,
                     ),
                     Positioned(
-                      bottom: 0, right: 0,
+                      bottom: 0,
+                      right: 0,
                       child: Container(
-                        width: 13, height: 13,
+                        width: 13,
+                        height: 13,
                         decoration: BoxDecoration(
-                          color: sColor,
+                          color: statusColor,
                           shape: BoxShape.circle,
-                          border: Border.all(
-                              color: Colors.white, width: 2),
+                          border: Border.all(color: Colors.white, width: 2),
                         ),
                       ),
                     ),
                   ],
                 ),
-
                 const SizedBox(width: 14),
-
-                // Name + info
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          Text(w.name,
-                              style: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w800,
-                                  color: _textDark)),
-                          if (isSOS) ...[
-                            const SizedBox(width: 6),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 7, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: _red,
-                                borderRadius:
-                                    BorderRadius.circular(6),
-                              ),
-                              child: const Text("SOS",
-                                  style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 10,
-                                      fontWeight: FontWeight.w800)),
-                            ),
-                          ]
+                          Flexible(
+                            child: Text(w.name,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w900,
+                                    color: _textDark)),
+                          ),
+                          if (w.hasSOS) _badge("SOS", _red),
                         ],
                       ),
-                      const SizedBox(height: 3),
-                      Row(
+                      const SizedBox(height: 4),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 4,
                         children: [
-                          Icon(_statusIcon(w.status),
-                              size: 12, color: sColor),
-                          const SizedBox(width: 4),
-                          Text(w.status,
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  color: sColor,
-                                  fontWeight: FontWeight.w600)),
-                          const SizedBox(width: 10),
-                          Icon(Icons.two_wheeler_rounded,
-                              size: 12, color: _textLight),
-                          const SizedBox(width: 4),
-                          Text(w.vehicle,
-                              style: const TextStyle(
-                                  fontSize: 12, color: _textLight)),
+                          _inlineMeta(_statusIcon(w.status), w.status, statusColor),
+                          _inlineMeta(Icons.two_wheeler_rounded, w.vehicle, _textLight),
                         ],
                       ),
                     ],
                   ),
                 ),
-
-                // Rating
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 5),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFFF7ED),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.star_rounded,
-                          size: 13, color: Color(0xFFF59E0B)),
-                      const SizedBox(width: 3),
-                      Text(w.rating.toStringAsFixed(1),
-                          style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w700,
-                              color: Color(0xFFF59E0B))),
-                    ],
-                  ),
-                ),
+                _ratingPill(w.rating),
               ],
             ),
           ),
-
-          // ── Stats strip
           Container(
             margin: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             padding: const EdgeInsets.all(12),
@@ -425,49 +304,26 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
             ),
             child: Row(
               children: [
-                _workerStat(Icons.receipt_long_rounded,
-                    "${w.totalOrders}", "Orders"),
+                _workerStat(Icons.receipt_long_rounded, "${w.totalOrders}", "Orders"),
                 _divider(),
-                _workerStat(Icons.favorite_outline,
-                    w.health, "Health",
-                    color: hColor),
+                _workerStat(Icons.favorite_outline, w.health, "Health",
+                    color: healthColor),
                 _divider(),
-                _workerStat(Icons.near_me_outlined,
-                    w.distance, "Distance"),
-                _divider(),
-                _workerStat(Icons.place_outlined,
-                    w.location, "Location"),
+                _workerStat(Icons.place_outlined, w.location, "Location"),
               ],
             ),
           ),
-
-          // ── Actions
           const Divider(height: 1, color: Color(0xFFF1F5F9)),
           Padding(
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                _wActionBtn(
-                    Icons.call_rounded, "Call", _green, onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text("Calling ${w.name}...")),
-                  );
-                }),
+                _actionBtn(Icons.call_rounded, "Call", _green),
                 const SizedBox(width: 8),
-                _wActionBtn(
-                    Icons.message_outlined, "Message", _blue,
-                    onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                        content: Text("Messaging ${w.name}...")),
-                  );
-                }),
+                _actionBtn(Icons.message_outlined, "Message", _blue),
                 const SizedBox(width: 8),
-                _wActionBtn(
-                    Icons.info_outline, "Details", _primary,
-                    filled: true, onTap: () {
-                  _showWorkerDetails(w);
-                }),
+                _actionBtn(Icons.info_outline, "Details", _primary,
+                    filled: true, onTap: () => _showWorkerDetails(w)),
               ],
             ),
           ),
@@ -476,57 +332,91 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
     );
   }
 
-  Widget _workerStat(IconData icon, String value, String label,
-      {Color? color}) {
-    return Expanded(
-      child: Column(
+  Widget _inlineMeta(IconData icon, String text, Color color) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 13, color: color),
+        const SizedBox(width: 4),
+        Text(text,
+            style:
+                TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w700)),
+      ],
+    );
+  }
+
+  Widget _badge(String text, Color color) {
+    return Container(
+      margin: const EdgeInsets.only(left: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(6)),
+      child: Text(text,
+          style: const TextStyle(
+              color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900)),
+    );
+  }
+
+  Widget _ratingPill(double rating) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
         children: [
-          Icon(icon,
-              size: 14,
-              color: color ?? const Color(0xFF94A3B8)),
-          const SizedBox(height: 4),
-          Text(value,
-              style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
-                  color: color ?? _textDark),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis),
-          Text(label,
+          const Icon(Icons.star_rounded, size: 13, color: _amber),
+          const SizedBox(width: 3),
+          Text(rating.toStringAsFixed(1),
               style: const TextStyle(
-                  fontSize: 10, color: Color(0xFF94A3B8))),
+                  fontSize: 12, fontWeight: FontWeight.w800, color: _amber)),
         ],
       ),
     );
   }
 
-  Widget _divider() => Container(
-      width: 1, height: 32, color: const Color(0xFFE2E8F0));
+  Widget _workerStat(IconData icon, String value, String label, {Color? color}) {
+    return Expanded(
+      child: Column(
+        children: [
+          Icon(icon, size: 15, color: color ?? _textLight),
+          const SizedBox(height: 4),
+          Text(value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w800,
+                  color: color ?? _textDark)),
+          Text(label, style: const TextStyle(fontSize: 10, color: _textLight)),
+        ],
+      ),
+    );
+  }
 
-  Widget _wActionBtn(IconData icon, String label, Color color,
+  Widget _divider() => Container(width: 1, height: 32, color: const Color(0xFFE2E8F0));
+
+  Widget _actionBtn(IconData icon, String label, Color color,
       {bool filled = false, VoidCallback? onTap}) {
     return Expanded(
-      child: GestureDetector(
+      child: InkWell(
         onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
         child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 9),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
-            color: filled
-                ? color
-                : color.withOpacity(0.08),
+            color: filled ? color : color.withOpacity(0.08),
             borderRadius: BorderRadius.circular(12),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(icon,
-                  size: 14,
-                  color: filled ? Colors.white : color),
+              Icon(icon, size: 14, color: filled ? Colors.white : color),
               const SizedBox(width: 5),
               Text(label,
                   style: TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                       color: filled ? Colors.white : color)),
             ],
           ),
@@ -535,25 +425,24 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
     );
   }
 
-  Widget _emptyState() => Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.people_outline_rounded,
-                size: 64, color: Colors.grey[300]),
-            const SizedBox(height: 12),
-            const Text("No workers found",
-                style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF94A3B8))),
-          ],
-        ),
-      );
+  Widget _stateMessage(IconData icon, String text) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 56, color: Colors.grey[300]),
+          const SizedBox(height: 12),
+          Text(text,
+              style: const TextStyle(
+                  fontSize: 16, fontWeight: FontWeight.w800, color: _textLight)),
+        ],
+      ),
+    );
+  }
 
   void _showAddWorkerDialog() {
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Add worker form coming soon")),
+      const SnackBar(content: Text("Create workers from the Add Worker action on Dashboard")),
     );
   }
 
@@ -563,21 +452,21 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.55,
+        initialChildSize: 0.58,
         maxChildSize: 0.9,
         builder: (_, ctrl) => Container(
           padding: const EdgeInsets.all(24),
           decoration: const BoxDecoration(
             color: Colors.white,
-            borderRadius:
-                BorderRadius.vertical(top: Radius.circular(24)),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
           child: ListView(
             controller: ctrl,
             children: [
               Center(
                 child: Container(
-                  width: 36, height: 4,
+                  width: 36,
+                  height: 4,
                   margin: const EdgeInsets.only(bottom: 20),
                   decoration: BoxDecoration(
                       color: const Color(0xFFE2E8F0),
@@ -588,29 +477,37 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
                 CircleAvatar(
                   radius: 30,
                   backgroundColor: _primary.withOpacity(0.1),
-                  child: Text(w.name[0],
-                      style: const TextStyle(
-                          color: _primary,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w800)),
+                  backgroundImage:
+                      w.photoUrl.isNotEmpty ? NetworkImage(w.photoUrl) : null,
+                  child: w.photoUrl.isEmpty
+                      ? Text(w.initial,
+                          style: const TextStyle(
+                              color: _primary,
+                              fontSize: 24,
+                              fontWeight: FontWeight.w900))
+                      : null,
                 ),
                 const SizedBox(width: 14),
-                Column(crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                  Text(w.name,
-                      style: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.w800)),
-                  Text(w.id,
-                      style: const TextStyle(
-                          color: Color(0xFF94A3B8), fontSize: 12)),
-                ]),
+                Expanded(
+                  child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(w.name,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                fontSize: 18, fontWeight: FontWeight.w900)),
+                        Text(w.id,
+                            style:
+                                const TextStyle(color: _textLight, fontSize: 12)),
+                      ]),
+                ),
               ]),
               const SizedBox(height: 20),
               _detailRow("Email", w.email),
               _detailRow("Phone", w.phone),
               _detailRow("Status", w.status),
               _detailRow("Vehicle", w.vehicle),
-              _detailRow("Rating", "${w.rating}"),
+              _detailRow("Rating", w.rating.toStringAsFixed(1)),
               _detailRow("Total Orders", "${w.totalOrders}"),
               _detailRow("Health", w.health),
               _detailRow("Location", w.location),
@@ -621,7 +518,7 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
     );
   }
 
-  Widget _detailRow(String key, String val) {
+  Widget _detailRow(String key, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 9),
       child: Row(
@@ -629,30 +526,123 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
           SizedBox(
             width: 110,
             child: Text(key,
-                style: const TextStyle(
-                    fontSize: 13, color: Color(0xFF94A3B8))),
+                style: const TextStyle(fontSize: 13, color: _textLight)),
           ),
           Expanded(
-            child: Text(val,
+            child: Text(value,
                 style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF0F172A))),
+                    fontSize: 13, fontWeight: FontWeight.w800, color: _textDark)),
           ),
         ],
       ),
     );
   }
+
+  Color _statusColor(String status) {
+    switch (status) {
+      case "Active":
+        return _green;
+      case "On Break":
+        return _amber;
+      case "SOS":
+        return _red;
+      default:
+        return _textLight;
+    }
+  }
+
+  IconData _statusIcon(String status) {
+    switch (status) {
+      case "Active":
+        return Icons.check_circle_rounded;
+      case "On Break":
+        return Icons.coffee_rounded;
+      case "SOS":
+        return Icons.emergency_rounded;
+      default:
+        return Icons.wifi_off_rounded;
+    }
+  }
+
+  Color _healthColor(String health) {
+    switch (health) {
+      case "Good":
+        return _green;
+      case "Tired":
+        return _amber;
+      case "Critical":
+        return _red;
+      default:
+        return _textLight;
+    }
+  }
 }
 
-// ── Worker model
 class _Worker {
-  final String  id, name, email, phone, status, vehicle,
-      location, health, distance;
-  final double  rating;
-  final int     totalOrders;
-  final bool    hasSOS;
-  const _Worker(this.id, this.name, this.email, this.phone,
-      this.status, this.vehicle, this.location, this.rating,
-      this.totalOrders, this.health, this.hasSOS, this.distance);
+  final String id;
+  final String name;
+  final String email;
+  final String phone;
+  final String status;
+  final String vehicle;
+  final String location;
+  final String health;
+  final double rating;
+  final int totalOrders;
+  final bool hasSOS;
+  final String photoUrl;
+
+  const _Worker({
+    required this.id,
+    required this.name,
+    required this.email,
+    required this.phone,
+    required this.status,
+    required this.vehicle,
+    required this.location,
+    required this.health,
+    required this.rating,
+    required this.totalOrders,
+    required this.hasSOS,
+    required this.photoUrl,
+  });
+
+  String get initial => name.isEmpty ? "W" : name[0].toUpperCase();
+
+  factory _Worker.fromDoc(String id, Map<String, dynamic> data) {
+    final hasSOS = data['hasSOS'] == true || data['sos'] == true;
+    final isOnBreak = data['isOnBreak'] == true || data['status'] == 'break';
+    final isOnline = data['isOnline'] == true;
+    final status = hasSOS
+        ? "SOS"
+        : isOnBreak
+            ? "On Break"
+            : isOnline
+                ? "Active"
+                : "Offline";
+    return _Worker(
+      id: id,
+      name: (data['name'] ?? data['displayName'] ?? 'Worker').toString(),
+      email: (data['email'] ?? '').toString(),
+      phone: (data['phone'] ?? data['mobile'] ?? '').toString(),
+      status: status,
+      vehicle: (data['vehicle'] ?? data['vehicleType'] ?? 'Vehicle').toString(),
+      location: (data['location'] ?? data['area'] ?? 'Not shared').toString(),
+      health: (data['health'] ?? data['healthStatus'] ?? 'Good').toString(),
+      rating: _double(data['rating'], fallback: 5),
+      totalOrders: _int(data['totalOrders']),
+      hasSOS: hasSOS,
+      photoUrl: (data['photoUrl'] ?? data['profileImageUrl'] ?? '').toString(),
+    );
+  }
+
+  static double _double(dynamic value, {double fallback = 0}) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? fallback;
+  }
+
+  static int _int(dynamic value) {
+    if (value is num) return value.toInt();
+    return int.tryParse(value?.toString() ?? '') ?? 0;
+  }
 }

@@ -1,18 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
-import 'dart:typed_data';
-
-// ─────────────────────────────────────────────
-//  WorkerProfileScreen — GigMate (Pro Level)
-//  ✅ Fixed: photo upload (web+mobile), card sizing
-//  ✅ Fixed: dart:io removed (web compatible)
-//  ✅ Fixed: cancel restores old values
-//  ✅ Added: online/offline toggle, UPI, emergency
-//  ✅ Added: saving loader, danger zone, dividers
-// ─────────────────────────────────────────────
 
 class WorkerProfileScreen extends StatefulWidget {
   const WorkerProfileScreen({super.key});
@@ -22,65 +13,61 @@ class WorkerProfileScreen extends StatefulWidget {
 }
 
 class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
+  static const Color _primary = Color(0xFF0F766E);
+  static const Color _bg = Color(0xFFF4F7FB);
+  static const Color _card = Colors.white;
+  static const Color _textDark = Color(0xFF0F172A);
+  static const Color _textMid = Color(0xFF475569);
+  static const Color _textLight = Color(0xFF94A3B8);
+  static const Color _green = Color(0xFF10B981);
+  static const Color _amber = Color(0xFFF59E0B);
+  static const Color _red = Color(0xFFEF4444);
+  static const Color _blue = Color(0xFF3B82F6);
 
-  // ── Colors
-  static const Color _primary      = Color(0xFF0F766E);
-  static const Color _bg           = Color(0xFFF4F7FB);
-  static const Color _card         = Colors.white;
-  static const Color _textDark     = Color(0xFF0F172A);
-  static const Color _textMid      = Color(0xFF475569);
-  static const Color _textLight    = Color(0xFF94A3B8);
-  static const Color _green        = Color(0xFF10B981);
-  static const Color _amber        = Color(0xFFF59E0B);
-  static const Color _red          = Color(0xFFEF4444);
-  static const Color _blue         = Color(0xFF3B82F6);
-
-  // ── Firebase
-  final _auth      = FirebaseAuth.instance;
+  final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
 
-  // ── UI State
-  bool _isEditing   = false;
-  bool _isLoading   = true;
-  bool _isSaving    = false;
+  bool _isEditing = false;
+  bool _isLoading = true;
+  bool _isSaving = false;
   bool _isUploading = false;
-  bool _isOnline    = true;
+  bool _isOnline = true;
+  bool _orderAlerts = true;
+  bool _breakReminders = true;
+  bool _sosUpdates = true;
 
-  // ── Photo (web-safe: Uint8List only)
   Uint8List? _imageBytes;
-  String     _photoUrl = "";
+  String _photoUrl = "";
 
-  // ── Profile data
-  String _name             = "";
-  String _email            = "";
-  String _phone            = "";
-  String _vehicleNo        = "";
-  String _vehicleType      = "Bike";
-  String _address          = "";
-  String _upiId            = "";
+  String _name = "";
+  String _email = "";
+  String _phone = "";
+  String _vehicleNo = "";
+  String _vehicleType = "Bike";
+  String _address = "";
+  String _upiId = "";
   String _emergencyContact = "";
-  double _rating           = 4.8;
-  int    _totalOrders      = 0;
-  int    _totalDays        = 0;
-  String _joinDate         = "2026";
-  String _status           = "Active";
-  String _selectedVehicle  = "Bike";
+  double _rating = 4.8;
+  int _totalOrders = 0;
+  int _totalDays = 0;
+  String _joinDate = "2026";
+  String _status = "Active";
+  String _selectedVehicle = "Bike";
+  String _language = "English";
 
-  // ── Controllers
-  final _nameCtrl      = TextEditingController();
-  final _phoneCtrl     = TextEditingController();
+  final _nameCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
   final _vehicleNoCtrl = TextEditingController();
-  final _addressCtrl   = TextEditingController();
-  final _upiCtrl       = TextEditingController();
+  final _addressCtrl = TextEditingController();
+  final _upiCtrl = TextEditingController();
   final _emergencyCtrl = TextEditingController();
 
-  // ── Vehicle options
   final List<Map<String, dynamic>> _vehicleOptions = [
-    {"label": "Bike",    "icon": Icons.two_wheeler_rounded},
+    {"label": "Bike", "icon": Icons.two_wheeler_rounded},
     {"label": "Scooter", "icon": Icons.electric_scooter_rounded},
-    {"label": "Cycle",   "icon": Icons.pedal_bike_rounded},
-    {"label": "Car",     "icon": Icons.directions_car_rounded},
-    {"label": "Van",     "icon": Icons.airport_shuttle_rounded},
+    {"label": "Cycle", "icon": Icons.pedal_bike_rounded},
+    {"label": "Car", "icon": Icons.directions_car_rounded},
+    {"label": "Van", "icon": Icons.airport_shuttle_rounded},
   ];
 
   @override
@@ -100,53 +87,53 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
     super.dispose();
   }
 
-  // ─────────────────────────────────────────
-  //  LOAD PROFILE FROM FIRESTORE
-  // ─────────────────────────────────────────
   Future<void> _loadProfile() async {
     try {
       final uid = _auth.currentUser?.uid;
-      if (uid == null) { setState(() => _isLoading = false); return; }
+      if (uid == null) {
+        setState(() => _isLoading = false);
+        return;
+      }
 
-      final doc  = await _firestore.collection("workers").doc(uid).get();
+      final doc = await _firestore.collection("workers").doc(uid).get();
       final data = doc.exists ? doc.data()! : <String, dynamic>{};
 
       setState(() {
-        _name             = data["name"]             ?? _auth.currentUser?.displayName ?? "Worker";
-        _email            = data["email"]            ?? _auth.currentUser?.email ?? "";
-        _phone            = data["phone"]            ?? "";
-        _vehicleNo        = data["vehicleNo"]        ?? "";
-        _vehicleType      = data["vehicleType"]      ?? "Bike";
-        _address          = data["address"]          ?? "";
-        _photoUrl         = data["photoUrl"]         ?? "";
-        _upiId            = data["upiId"]            ?? "";
+        _name = data["name"] ?? _auth.currentUser?.displayName ?? "Worker";
+        _email = data["email"] ?? _auth.currentUser?.email ?? "";
+        _phone = data["phone"] ?? "";
+        _vehicleNo = data["vehicleNo"] ?? "";
+        _vehicleType = data["vehicleType"] ?? "Bike";
+        _address = data["address"] ?? "";
+        _photoUrl = data["photoUrl"] ?? "";
+        _upiId = data["upiId"] ?? "";
         _emergencyContact = data["emergencyContact"] ?? "";
-        _rating           = (data["rating"]          ?? 4.8).toDouble();
-        _totalOrders      = data["totalOrders"]      ?? 0;
-        _totalDays        = data["totalDays"]        ?? 0;
-        _joinDate         = data["joinDate"]         ?? "2026";
-        _status           = data["status"]           ?? "Active";
-        _isOnline         = data["isOnline"]         ?? true;
-        _selectedVehicle  = _vehicleType;
-        _isLoading        = false;
+        _rating = (data["rating"] ?? 4.8).toDouble();
+        _totalOrders = data["totalOrders"] ?? 0;
+        _totalDays = data["totalDays"] ?? 0;
+        _joinDate = data["joinDate"] ?? "2026";
+        _status = data["status"] ?? "Active";
+        _isOnline = data["isOnline"] ?? true;
+        _orderAlerts = data["orderAlerts"] ?? true;
+        _breakReminders = data["breakReminders"] ?? true;
+        _sosUpdates = data["sosUpdates"] ?? true;
+        _language = data["language"] ?? "English";
+        _selectedVehicle = _vehicleType;
+        _isLoading = false;
       });
 
-      _nameCtrl.text      = _name;
-      _phoneCtrl.text     = _phone;
+      _nameCtrl.text = _name;
+      _phoneCtrl.text = _phone;
       _vehicleNoCtrl.text = _vehicleNo;
-      _addressCtrl.text   = _address;
-      _upiCtrl.text       = _upiId;
+      _addressCtrl.text = _address;
+      _upiCtrl.text = _upiId;
       _emergencyCtrl.text = _emergencyContact;
-
     } catch (e) {
       debugPrint("Profile load error: $e");
       setState(() => _isLoading = false);
     }
   }
 
-  // ─────────────────────────────────────────
-  //  SAVE PROFILE TO FIRESTORE
-  // ─────────────────────────────────────────
   Future<void> _saveProfile() async {
     if (_isSaving) return;
     setState(() => _isSaving = true);
@@ -156,30 +143,29 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
       if (uid == null) return;
 
       await _firestore.collection("workers").doc(uid).set({
-        "name"            : _nameCtrl.text.trim(),
-        "phone"           : _phoneCtrl.text.trim(),
-        "vehicleNo"       : _vehicleNoCtrl.text.trim(),
-        "vehicleType"     : _selectedVehicle,
-        "address"         : _addressCtrl.text.trim(),
-        "upiId"           : _upiCtrl.text.trim(),
+        "name": _nameCtrl.text.trim(),
+        "phone": _phoneCtrl.text.trim(),
+        "vehicleNo": _vehicleNoCtrl.text.trim(),
+        "vehicleType": _selectedVehicle,
+        "address": _addressCtrl.text.trim(),
+        "upiId": _upiCtrl.text.trim(),
         "emergencyContact": _emergencyCtrl.text.trim(),
-        "email"           : _email,
+        "email": _email,
       }, SetOptions(merge: true));
 
       setState(() {
-        _name             = _nameCtrl.text.trim();
-        _phone            = _phoneCtrl.text.trim();
-        _vehicleNo        = _vehicleNoCtrl.text.trim();
-        _vehicleType      = _selectedVehicle;
-        _address          = _addressCtrl.text.trim();
-        _upiId            = _upiCtrl.text.trim();
+        _name = _nameCtrl.text.trim();
+        _phone = _phoneCtrl.text.trim();
+        _vehicleNo = _vehicleNoCtrl.text.trim();
+        _vehicleType = _selectedVehicle;
+        _address = _addressCtrl.text.trim();
+        _upiId = _upiCtrl.text.trim();
         _emergencyContact = _emergencyCtrl.text.trim();
-        _isEditing        = false;
-        _isSaving         = false;
+        _isEditing = false;
+        _isSaving = false;
       });
 
       _showSnackbar("Profile updated successfully! ✅", _green);
-
     } catch (e) {
       debugPrint("Save error: $e");
       setState(() => _isSaving = false);
@@ -187,9 +173,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
     }
   }
 
-  // ─────────────────────────────────────────
-  //  PHOTO UPLOAD — web + mobile compatible
-  // ─────────────────────────────────────────
   Future<void> _pickAndUploadPhoto() async {
     try {
       final picker = ImagePicker();
@@ -201,12 +184,10 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
       );
       if (picked == null) return;
 
-      // ✅ readAsBytes works on web + mobile both
       final bytes = await picked.readAsBytes();
 
-      // Show preview immediately (optimistic UI)
       setState(() {
-        _imageBytes  = bytes;
+        _imageBytes = bytes;
         _isUploading = true;
       });
 
@@ -216,10 +197,8 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
         return;
       }
 
-      // ✅ putData works on web (putFile only works on mobile)
-      final ref = FirebaseStorage.instance
-          .ref()
-          .child("profile_images/$uid.jpg");
+      final ref =
+          FirebaseStorage.instance.ref().child("profile_images/$uid.jpg");
 
       await ref.putData(
         bytes,
@@ -228,26 +207,36 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
 
       final url = await ref.getDownloadURL();
 
-      // Save URL to Firestore
       await _firestore.collection("workers").doc(uid).set(
-        {"photoUrl": url},
+        {
+          "photoUrl": url,
+          "profileImageUrl": url,
+          "updatedAt": FieldValue.serverTimestamp(),
+        },
+        SetOptions(merge: true),
+      );
+      await _firestore.collection("users").doc(uid).set(
+        {
+          "photoUrl": url,
+          "profileImageUrl": url,
+          "updatedAt": FieldValue.serverTimestamp(),
+        },
         SetOptions(merge: true),
       );
 
       if (mounted) {
         setState(() {
-          _photoUrl    = url;
-          _imageBytes  = null; // use network URL from now
+          _photoUrl = url;
+          _imageBytes = null;
           _isUploading = false;
         });
         _showSnackbar("Profile photo updated! 📸", _green);
       }
-
     } catch (e) {
       debugPrint("Photo upload error: $e");
       if (mounted) {
         setState(() {
-          _imageBytes  = null;
+          _imageBytes = null;
           _isUploading = false;
         });
         _showSnackbar("Photo upload failed. Try again.", _red);
@@ -255,9 +244,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
     }
   }
 
-  // ─────────────────────────────────────────
-  //  ONLINE / OFFLINE TOGGLE
-  // ─────────────────────────────────────────
   Future<void> _toggleOnlineStatus(bool value) async {
     setState(() => _isOnline = value);
     try {
@@ -272,29 +258,23 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
         value ? _green : _red,
       );
     } catch (e) {
-      setState(() => _isOnline = !value); // revert on error
+      setState(() => _isOnline = !value);
     }
   }
 
-  // ─────────────────────────────────────────
-  //  CANCEL EDIT — restore old values
-  // ─────────────────────────────────────────
   void _cancelEdit() {
-    _nameCtrl.text      = _name;
-    _phoneCtrl.text     = _phone;
+    _nameCtrl.text = _name;
+    _phoneCtrl.text = _phone;
     _vehicleNoCtrl.text = _vehicleNo;
-    _addressCtrl.text   = _address;
-    _upiCtrl.text       = _upiId;
+    _addressCtrl.text = _address;
+    _upiCtrl.text = _upiId;
     _emergencyCtrl.text = _emergencyContact;
     setState(() {
       _selectedVehicle = _vehicleType;
-      _isEditing       = false;
+      _isEditing = false;
     });
   }
 
-  // ─────────────────────────────────────────
-  //  LOGOUT
-  // ─────────────────────────────────────────
   Future<void> _logout() async {
     final confirm = await _showConfirmDialog(
       title: "Logout?",
@@ -310,9 +290,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
     }
   }
 
-  // ─────────────────────────────────────────
-  //  DELETE ACCOUNT
-  // ─────────────────────────────────────────
   Future<void> _deleteAccount() async {
     final confirm = await _showConfirmDialog(
       title: "Delete Account?",
@@ -337,18 +314,13 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
     }
   }
 
-  // ─────────────────────────────────────────
-  //  HELPERS
-  // ─────────────────────────────────────────
   void _showSnackbar(String msg, Color color) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg,
-          style: const TextStyle(fontWeight: FontWeight.w600)),
+      content: Text(msg, style: const TextStyle(fontWeight: FontWeight.w600)),
       backgroundColor: color,
       behavior: SnackBarBehavior.floating,
-      shape:
-          RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       margin: const EdgeInsets.all(16),
     ));
   }
@@ -362,17 +334,13 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
     return showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20)),
-        title: Text(title,
-            style: const TextStyle(fontWeight: FontWeight.w800)),
-        content:
-            Text(content, style: const TextStyle(color: _textMid)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.w800)),
+        content: Text(content, style: const TextStyle(color: _textMid)),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
-            child: const Text("Cancel",
-                style: TextStyle(color: _textMid)),
+            child: const Text("Cancel", style: TextStyle(color: _textMid)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -381,24 +349,20 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                   borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(confirmText,
-                style: const TextStyle(color: Colors.white)),
+            child:
+                Text(confirmText, style: const TextStyle(color: Colors.white)),
           ),
         ],
       ),
     );
   }
 
-  // ─────────────────────────────────────────
-  //  BUILD
-  // ─────────────────────────────────────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: _bg,
       body: _isLoading
-          ? const Center(
-              child: CircularProgressIndicator(color: _primary))
+          ? const Center(child: CircularProgressIndicator(color: _primary))
           : CustomScrollView(
               slivers: [
                 _buildSliverAppBar(),
@@ -432,24 +396,18 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
     );
   }
 
-  // ─────────────────────────────────────────
-  //  SLIVER APP BAR
-  // ─────────────────────────────────────────
   Widget _buildSliverAppBar() {
     return SliverAppBar(
-      expandedHeight: 275,
+      expandedHeight: 380,
       pinned: true,
       backgroundColor: _primary,
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back_ios_new_rounded,
-            color: Colors.white),
+        icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
         onPressed: () => Navigator.pop(context),
       ),
       title: const Text("My Profile",
           style: TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.w800,
-              fontSize: 18)),
+              color: Colors.white, fontWeight: FontWeight.w800, fontSize: 18)),
       actions: [
         TextButton.icon(
           onPressed: _isEditing
@@ -477,11 +435,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
     return Container(
       decoration: const BoxDecoration(
         gradient: LinearGradient(
-          colors: [
-            Color(0xFF0F766E),
-            Color(0xFF14B8A6),
-            Color(0xFF0EA5E9)
-          ],
+          colors: [Color(0xFF0F766E), Color(0xFF14B8A6), Color(0xFF0EA5E9)],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -491,8 +445,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const SizedBox(height: 44),
-
-            // ── Avatar
             GestureDetector(
               onTap: _pickAndUploadPhoto,
               child: Stack(
@@ -503,8 +455,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                     height: 96,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      border:
-                          Border.all(color: Colors.white, width: 3),
+                      border: Border.all(color: Colors.white, width: 3),
                       boxShadow: [
                         BoxShadow(
                           color: Colors.black.withOpacity(0.2),
@@ -516,8 +467,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                     child: ClipOval(
                       child: _isUploading
                           ? Container(
-                              color:
-                                  Colors.white.withOpacity(0.2),
+                              color: Colors.white.withOpacity(0.2),
                               child: const Center(
                                 child: CircularProgressIndicator(
                                   color: Colors.white,
@@ -526,36 +476,31 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                               ),
                             )
                           : _imageBytes != null
-                              ? Image.memory(_imageBytes!,
-                                  fit: BoxFit.cover)
+                              ? Image.memory(_imageBytes!, fit: BoxFit.cover)
                               : _photoUrl.isNotEmpty
                                   ? Image.network(
                                       _photoUrl,
                                       fit: BoxFit.cover,
-                                      loadingBuilder:
-                                          (_, child, progress) {
-                                        if (progress == null)
+                                      loadingBuilder: (_, child, progress) {
+                                        if (progress == null) {
                                           return child;
+                                        }
                                         return Container(
-                                          color: Colors.white
-                                              .withOpacity(0.2),
+                                          color: Colors.white.withOpacity(0.2),
                                           child: const Center(
-                                            child:
-                                                CircularProgressIndicator(
+                                            child: CircularProgressIndicator(
                                               color: Colors.white,
                                               strokeWidth: 2,
                                             ),
                                           ),
                                         );
                                       },
-                                      errorBuilder:
-                                          (_, __, ___) =>
-                                              _avatarFallback(),
+                                      errorBuilder: (_, __, ___) =>
+                                          _avatarFallback(),
                                     )
                                   : _avatarFallback(),
                     ),
                   ),
-                  // Camera badge
                   Positioned(
                     bottom: 2,
                     right: 2,
@@ -566,8 +511,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                         color: Colors.white,
                         shape: BoxShape.circle,
                         border: Border.all(
-                            color: const Color(0xFFE2E8F0),
-                            width: 1.5),
+                            color: const Color(0xFFE2E8F0), width: 1.5),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.12),
@@ -582,9 +526,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                 ],
               ),
             ),
-
             const SizedBox(height: 14),
-
             Text(
               _name.isEmpty ? "Worker" : _name,
               style: const TextStyle(
@@ -595,38 +537,146 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
             ),
             const SizedBox(height: 4),
             Text(_email,
-                style: const TextStyle(
-                    color: Colors.white70, fontSize: 13)),
+                style: const TextStyle(color: Colors.white70, fontSize: 13)),
             const SizedBox(height: 12),
-
-            // Chips
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
                   _headerChip(
-                    _isOnline
-                        ? Icons.circle
-                        : Icons.circle_outlined,
+                    _isOnline ? Icons.circle : Icons.circle_outlined,
                     _isOnline ? "Online" : "Offline",
-                    _isOnline
-                        ? Colors.greenAccent
-                        : Colors.white60,
+                    _isOnline ? Colors.greenAccent : Colors.white60,
                   ),
                   const SizedBox(width: 8),
-                  _headerChip(Icons.verified_rounded, _status,
-                      Colors.white),
+                  _headerChip(Icons.verified_rounded, _status, Colors.white),
                   const SizedBox(width: 8),
-                  _headerChip(Icons.calendar_today_outlined,
-                      "Since $_joinDate", Colors.white),
+                  _headerChip(Icons.calendar_today_outlined, "Since $_joinDate",
+                      Colors.white),
                 ],
               ),
             ),
+            const SizedBox(height: 14),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 18),
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.18),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    _headerMetric("Orders", "$_totalOrders"),
+                    _softDivider(),
+                    _headerMetric("Rating", _rating.toStringAsFixed(1)),
+                    _softDivider(),
+                    _headerMetric("Active", "$_totalDays d"),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            _quickProfileActionRow(),
             const SizedBox(height: 8),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _quickProfileActionRow() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 18),
+      child: Row(
+        children: [
+          _profileActionChip(Icons.notifications_active_outlined, "Alerts",
+              _primary, _showNotificationSettings),
+          const SizedBox(width: 8),
+          _profileActionChip(Icons.lock_outline_rounded, "Security", _blue,
+              _showPasswordReset),
+          const SizedBox(width: 8),
+          _profileActionChip(Icons.support_agent_rounded, "Support", _amber,
+              _showSupportDialog),
+        ],
+      ),
+    );
+  }
+
+  Widget _profileActionChip(
+      IconData icon, String label, Color color, VoidCallback onTap) {
+    return Expanded(
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: Colors.white, size: 15),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _headerMetric(String label, String value) {
+    return Expanded(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w900,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: Colors.white70, fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _softDivider() {
+    return Container(
+      width: 1,
+      height: 32,
+      color: Colors.white.withValues(alpha: 0.18),
     );
   }
 
@@ -637,9 +687,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
         child: Text(
           _name.isNotEmpty ? _name[0].toUpperCase() : "W",
           style: const TextStyle(
-              color: Colors.white,
-              fontSize: 38,
-              fontWeight: FontWeight.w900),
+              color: Colors.white, fontSize: 38, fontWeight: FontWeight.w900),
         ),
       ),
     );
@@ -647,8 +695,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
 
   Widget _headerChip(IconData icon, String text, Color color) {
     return Container(
-      padding:
-          const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: Colors.white.withOpacity(0.16),
         borderRadius: BorderRadius.circular(20),
@@ -660,30 +707,28 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
           const SizedBox(width: 5),
           Text(text,
               style: TextStyle(
-                  color: color,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600)),
+                  color: color, fontSize: 12, fontWeight: FontWeight.w600)),
         ],
       ),
     );
   }
 
-  // ─────────────────────────────────────────
-  //  ONLINE TOGGLE CARD
-  // ─────────────────────────────────────────
   Widget _buildOnlineToggleCard() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: BoxDecoration(
-        color: _isOnline
-            ? _green.withOpacity(0.08)
-            : _red.withOpacity(0.06),
+        color: _isOnline ? _green.withOpacity(0.08) : _red.withOpacity(0.06),
         borderRadius: BorderRadius.circular(18),
         border: Border.all(
-          color: _isOnline
-              ? _green.withOpacity(0.3)
-              : _red.withOpacity(0.25),
+          color: _isOnline ? _green.withOpacity(0.3) : _red.withOpacity(0.25),
         ),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 14,
+            offset: Offset(0, 6),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -691,8 +736,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
             width: 46,
             height: 46,
             decoration: BoxDecoration(
-              color:
-                  (_isOnline ? _green : _red).withOpacity(0.12),
+              color: (_isOnline ? _green : _red).withOpacity(0.12),
               borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(
@@ -718,8 +762,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                   _isOnline
                       ? "Receiving new order requests"
                       : "Not receiving any orders",
-                  style: const TextStyle(
-                      fontSize: 12, color: _textLight),
+                  style: const TextStyle(fontSize: 12, color: _textLight),
                 ),
               ],
             ),
@@ -735,39 +778,34 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
     );
   }
 
-  // ─────────────────────────────────────────
-  //  STATS ROW
-  // ─────────────────────────────────────────
   Widget _buildStatsRow() {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 10),
       decoration: BoxDecoration(
         color: _card,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: const [
           BoxShadow(
-              color: Color(0x0A000000),
-              blurRadius: 14,
-              offset: Offset(0, 4)),
+              color: Color(0x0A000000), blurRadius: 14, offset: Offset(0, 4)),
         ],
       ),
       child: Row(
         children: [
-          _statItem("$_totalOrders", "Total Orders",
-              Icons.inventory_2_outlined, _primary),
+          _statItem("$_totalOrders", "Total Orders", Icons.inventory_2_outlined,
+              _primary),
           _statDivider(),
           _statItem(_rating.toStringAsFixed(1), "Avg Rating",
               Icons.star_rounded, _amber),
           _statDivider(),
-          _statItem("$_totalDays", "Active Days",
-              Icons.calendar_month_outlined, _green),
+          _statItem("$_totalDays", "Active Days", Icons.calendar_month_outlined,
+              _green),
         ],
       ),
     );
   }
 
-  Widget _statItem(
-      String value, String label, IconData icon, Color color) {
+  Widget _statItem(String value, String label, IconData icon, Color color) {
     return Expanded(
       child: Column(
         children: [
@@ -783,9 +821,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
           const SizedBox(height: 8),
           Text(value,
               style: TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 20,
-                  color: color)),
+                  fontWeight: FontWeight.w900, fontSize: 20, color: color)),
           const SizedBox(height: 2),
           Text(label,
               style: const TextStyle(fontSize: 11, color: _textLight),
@@ -798,9 +834,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
   Widget _statDivider() =>
       Container(width: 1, height: 56, color: const Color(0xFFE2E8F0));
 
-  // ─────────────────────────────────────────
-  //  PERSONAL INFO CARD
-  // ─────────────────────────────────────────
   Widget _buildInfoCard() {
     return _sectionCard(
       title: "Personal Info",
@@ -809,33 +842,30 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
       child: Column(
         children: [
           _isEditing
-              ? _editField("Full Name", _nameCtrl,
-                  Icons.person_outline, TextInputType.name)
+              ? _editField("Full Name", _nameCtrl, Icons.person_outline,
+                  TextInputType.name)
               : _infoRow(Icons.person_outline, "Full Name",
                   _name.isEmpty ? "Not set" : _name),
           _gap(),
           _infoRow(Icons.email_outlined, "Email", _email),
           _gap(),
           _isEditing
-              ? _editField("Phone Number", _phoneCtrl,
-                  Icons.phone_outlined, TextInputType.phone)
+              ? _editField("Phone Number", _phoneCtrl, Icons.phone_outlined,
+                  TextInputType.phone)
               : _infoRow(Icons.phone_outlined, "Phone",
                   _phone.isEmpty ? "Not added" : _phone),
           _gap(),
           _isEditing
-              ? _editField("Home Address", _addressCtrl,
-                  Icons.home_outlined, TextInputType.streetAddress)
+              ? _editField("Home Address", _addressCtrl, Icons.home_outlined,
+                  TextInputType.streetAddress)
               : _infoRow(Icons.home_outlined, "Address",
                   _address.isEmpty ? "Not added" : _address),
           _gap(),
           _isEditing
               ? _editField("Emergency Contact", _emergencyCtrl,
                   Icons.emergency_outlined, TextInputType.phone)
-              : _infoRow(Icons.emergency_outlined,
-                  "Emergency Contact",
-                  _emergencyContact.isEmpty
-                      ? "Not added"
-                      : _emergencyContact),
+              : _infoRow(Icons.emergency_outlined, "Emergency Contact",
+                  _emergencyContact.isEmpty ? "Not added" : _emergencyContact),
           if (_isEditing) ...[
             const SizedBox(height: 18),
             _saveButton(),
@@ -845,9 +875,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
     );
   }
 
-  // ─────────────────────────────────────────
-  //  VEHICLE CARD
-  // ─────────────────────────────────────────
   Widget _buildVehicleCard() {
     return _sectionCard(
       title: "Vehicle Info",
@@ -867,41 +894,32 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: _vehicleOptions.map((v) {
-                  final label    = v["label"] as String;
-                  final icon     = v["icon"] as IconData;
+                  final label = v["label"] as String;
+                  final icon = v["icon"] as IconData;
                   final selected = _selectedVehicle == label;
                   return GestureDetector(
-                    onTap: () =>
-                        setState(() => _selectedVehicle = label),
+                    onTap: () => setState(() => _selectedVehicle = label),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 200),
                       margin: const EdgeInsets.only(right: 10),
                       padding: const EdgeInsets.symmetric(
                           horizontal: 14, vertical: 10),
                       decoration: BoxDecoration(
-                        color: selected
-                            ? _primary
-                            : const Color(0xFFF1F5F9),
+                        color: selected ? _primary : const Color(0xFFF1F5F9),
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(
-                          color: selected
-                              ? _primary
-                              : const Color(0xFFE2E8F0),
+                          color: selected ? _primary : const Color(0xFFE2E8F0),
                         ),
                       ),
                       child: Row(
                         children: [
                           Icon(icon,
-                              color: selected
-                                  ? Colors.white
-                                  : _textMid,
+                              color: selected ? Colors.white : _textMid,
                               size: 18),
                           const SizedBox(width: 6),
                           Text(label,
                               style: TextStyle(
-                                  color: selected
-                                      ? Colors.white
-                                      : _textMid,
+                                  color: selected ? Colors.white : _textMid,
                                   fontWeight: FontWeight.w700,
                                   fontSize: 13)),
                         ],
@@ -912,16 +930,12 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
               ),
             ),
             const SizedBox(height: 14),
-            _editField(
-                "Vehicle Number (e.g. MH12AB1234)",
-                _vehicleNoCtrl,
-                Icons.pin_outlined,
-                TextInputType.text),
+            _editField("Vehicle Number (e.g. MH12AB1234)", _vehicleNoCtrl,
+                Icons.pin_outlined, TextInputType.text),
             const SizedBox(height: 18),
             _saveButton(),
           ] else ...[
-            _infoRow(Icons.two_wheeler_rounded, "Vehicle Type",
-                _vehicleType),
+            _infoRow(Icons.two_wheeler_rounded, "Vehicle Type", _vehicleType),
             _gap(),
             _infoRow(Icons.pin_outlined, "Vehicle Number",
                 _vehicleNo.isEmpty ? "Not added" : _vehicleNo),
@@ -931,9 +945,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
     );
   }
 
-  // ─────────────────────────────────────────
-  //  PAYMENT CARD
-  // ─────────────────────────────────────────
   Widget _buildPaymentCard() {
     return _sectionCard(
       title: "Payment Info",
@@ -942,11 +953,8 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
       child: _isEditing
           ? Column(
               children: [
-                _editField(
-                    "UPI ID (e.g. name@upi)",
-                    _upiCtrl,
-                    Icons.alternate_email_rounded,
-                    TextInputType.emailAddress),
+                _editField("UPI ID (e.g. name@upi)", _upiCtrl,
+                    Icons.alternate_email_rounded, TextInputType.emailAddress),
                 const SizedBox(height: 18),
                 _saveButton(),
               ],
@@ -959,17 +967,14 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
     );
   }
 
-  // ─────────────────────────────────────────
-  //  BADGES CARD
-  // ─────────────────────────────────────────
   Widget _buildBadgesCard() {
     final badges = [
-      _Badge("⭐", "Top Rated",  "4.8+ rating",         true),
-      _Badge("🚀", "Speed King", "Fastest deliveries",   true),
-      _Badge("💯", "Century",    "100+ orders done",     _totalOrders >= 100),
-      _Badge("🔥", "On Fire",    "7-day streak",         false),
-      _Badge("🏆", "Elite",      "500+ orders needed",   _totalOrders >= 500),
-      _Badge("💎", "Diamond",    "1000+ orders needed",  _totalOrders >= 1000),
+      _Badge("⭐", "Top Rated", "4.8+ rating", true),
+      _Badge("🚀", "Speed King", "Fastest deliveries", true),
+      _Badge("💯", "Century", "100+ orders done", _totalOrders >= 100),
+      _Badge("🔥", "On Fire", "7-day streak", false),
+      _Badge("🏆", "Elite", "500+ orders needed", _totalOrders >= 500),
+      _Badge("💎", "Diamond", "1000+ orders needed", _totalOrders >= 1000),
     ];
 
     return _sectionCard(
@@ -983,7 +988,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
           crossAxisCount: 2,
           crossAxisSpacing: 10,
           mainAxisSpacing: 10,
-          childAspectRatio: 3.3, // ✅ Professional sizing
+          childAspectRatio: 3.3,
         ),
         itemCount: badges.length,
         itemBuilder: (_, i) {
@@ -1020,13 +1025,11 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
                           style: TextStyle(
                               fontWeight: FontWeight.w800,
                               fontSize: 13,
-                              color: b.unlocked
-                                  ? _primary
-                                  : _textLight)),
+                              color: b.unlocked ? _primary : _textLight)),
                       const SizedBox(height: 2),
                       Text(b.subtitle,
-                          style: const TextStyle(
-                              fontSize: 10, color: _textLight),
+                          style:
+                              const TextStyle(fontSize: 10, color: _textLight),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis),
                     ],
@@ -1043,9 +1046,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
     );
   }
 
-  // ─────────────────────────────────────────
-  //  SETTINGS CARD
-  // ─────────────────────────────────────────
   Widget _buildSettingsCard() {
     return _sectionCard(
       title: "Settings",
@@ -1055,35 +1055,325 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
         children: [
           _settingsTile(Icons.notifications_outlined, "Notifications",
               "Order alerts & reminders", _primary,
-              onTap: () => _showSnackbar(
-                  "Notification settings coming soon", _primary)),
+              onTap: _showNotificationSettings),
           _settingsDivider(),
           _settingsTile(Icons.lock_outline_rounded, "Change Password",
               "Update your login password", _blue,
-              onTap: () =>
-                  _showSnackbar("Password reset coming soon", _blue)),
+              onTap: _showPasswordReset),
           _settingsDivider(),
-          _settingsTile(Icons.language_rounded, "Language",
-              "English (Default)", _green,
-              onTap: () => _showSnackbar(
-                  "Language settings coming soon", _green)),
+          _settingsTile(Icons.language_rounded, "Language", _language, _green,
+              onTap: _showLanguageSelector),
           _settingsDivider(),
           _settingsTile(Icons.help_outline_rounded, "Help & Support",
               "Contact GigMate support", _amber,
-              onTap: () =>
-                  _showSnackbar("Support coming soon", _amber)),
+              onTap: _showSupportDialog),
           _settingsDivider(),
-          _settingsTile(Icons.logout_rounded, "Logout",
-              "Sign out from this device", _red,
+          _settingsTile(
+              Icons.logout_rounded, "Logout", "Sign out from this device", _red,
               onTap: _logout),
         ],
       ),
     );
   }
 
-  // ─────────────────────────────────────────
-  //  DANGER ZONE
-  // ─────────────────────────────────────────
+  void _showNotificationSettings() {
+    var orderAlerts = _orderAlerts;
+    var breakReminders = _breakReminders;
+    var sosUpdates = _sosUpdates;
+
+    showDialog(
+      context: context,
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setDialogState) {
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+            title: const Text("Notifications",
+                style: TextStyle(fontWeight: FontWeight.w900)),
+            content: SizedBox(
+              width: 420,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _notificationSwitch(
+                    icon: Icons.inventory_2_outlined,
+                    title: "Order alerts",
+                    subtitle: "New order requests and status updates",
+                    value: orderAlerts,
+                    onChanged: (value) =>
+                        setDialogState(() => orderAlerts = value),
+                  ),
+                  _notificationSwitch(
+                    icon: Icons.coffee_outlined,
+                    title: "Break reminders",
+                    subtitle: "Rest timer and long shift reminders",
+                    value: breakReminders,
+                    onChanged: (value) =>
+                        setDialogState(() => breakReminders = value),
+                  ),
+                  _notificationSwitch(
+                    icon: Icons.emergency_outlined,
+                    title: "SOS updates",
+                    subtitle: "Emergency and admin response alerts",
+                    value: sosUpdates,
+                    onChanged: (value) =>
+                        setDialogState(() => sosUpdates = value),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text("Cancel"),
+              ),
+              ElevatedButton(
+                onPressed: () async {
+                  final uid = _auth.currentUser?.uid;
+                  if (uid == null) return;
+                  await _firestore.collection("workers").doc(uid).set({
+                    "orderAlerts": orderAlerts,
+                    "breakReminders": breakReminders,
+                    "sosUpdates": sosUpdates,
+                  }, SetOptions(merge: true));
+                  if (!ctx.mounted) return;
+                  setState(() {
+                    _orderAlerts = orderAlerts;
+                    _breakReminders = breakReminders;
+                    _sosUpdates = sosUpdates;
+                  });
+                  Navigator.pop(ctx);
+                  _showSnackbar("Notification preferences saved", _green);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: _primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text("Save"),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _notificationSwitch({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: _primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: _primary, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title,
+                    style: const TextStyle(
+                        color: _textDark,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w900)),
+                const SizedBox(height: 2),
+                Text(subtitle,
+                    style: const TextStyle(color: _textLight, fontSize: 12)),
+              ],
+            ),
+          ),
+          Switch.adaptive(
+            value: value,
+            activeColor: _primary,
+            onChanged: onChanged,
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showPasswordReset() {
+    final email = _auth.currentUser?.email ?? _email;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: const Text("Change Password",
+            style: TextStyle(fontWeight: FontWeight.w900)),
+        content: Text(
+          email.isEmpty
+              ? "No email is linked with this account."
+              : "A secure password reset link will be sent to $email.",
+          style: const TextStyle(color: _textMid, height: 1.35),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Cancel"),
+          ),
+          ElevatedButton(
+            onPressed: email.isEmpty
+                ? null
+                : () async {
+                    await _auth.sendPasswordResetEmail(email: email);
+                    if (!ctx.mounted) return;
+                    Navigator.pop(ctx);
+                    _showSnackbar("Password reset email sent", _blue);
+                  },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _blue,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text("Send Link"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showLanguageSelector() {
+    final languages = ["English", "Hindi", "Hinglish"];
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: const Text("Language",
+            style: TextStyle(fontWeight: FontWeight.w900)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: languages
+              .map(
+                (language) => RadioListTile<String>(
+                  value: language,
+                  groupValue: _language,
+                  activeColor: _primary,
+                  title: Text(language,
+                      style: const TextStyle(fontWeight: FontWeight.w800)),
+                  onChanged: (value) async {
+                    if (value == null) return;
+                    final uid = _auth.currentUser?.uid;
+                    if (uid != null) {
+                      await _firestore.collection("workers").doc(uid).set({
+                        "language": value,
+                      }, SetOptions(merge: true));
+                    }
+                    if (!ctx.mounted) return;
+                    setState(() => _language = value);
+                    Navigator.pop(ctx);
+                    _showSnackbar("Language updated", _green);
+                  },
+                ),
+              )
+              .toList(),
+        ),
+      ),
+    );
+  }
+
+  void _showSupportDialog() {
+    const supportEmail = "support@gigmate.app";
+    const supportPhone = "+91 98765 43210";
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(22)),
+        title: const Text("Help & Support",
+            style: TextStyle(fontWeight: FontWeight.w900)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _supportRow(Icons.mail_outline_rounded, "Email", supportEmail),
+            const SizedBox(height: 10),
+            _supportRow(Icons.call_outlined, "Phone", supportPhone),
+            const SizedBox(height: 10),
+            _supportRow(Icons.schedule_rounded, "Hours", "9 AM - 8 PM"),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("Close"),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              await Clipboard.setData(
+                const ClipboardData(text: "$supportEmail | $supportPhone"),
+              );
+              if (!ctx.mounted) return;
+              Navigator.pop(ctx);
+              _showSnackbar("Support contact copied", _amber);
+            },
+            icon: const Icon(Icons.copy_rounded, size: 17),
+            label: const Text("Copy"),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _amber,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _supportRow(IconData icon, String label, String value) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: _primary, size: 20),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 56,
+            child: Text(label,
+                style: const TextStyle(color: _textLight, fontSize: 12)),
+          ),
+          Expanded(
+            child: Text(value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    color: _textDark,
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800)),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDangerZone() {
     return Container(
       width: double.infinity,
@@ -1102,9 +1392,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
               SizedBox(width: 8),
               Text("Danger Zone",
                   style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w800,
-                      color: _red)),
+                      fontSize: 14, fontWeight: FontWeight.w800, color: _red)),
             ],
           ),
           const SizedBox(height: 6),
@@ -1120,8 +1408,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
               icon: const Icon(Icons.delete_forever_rounded,
                   color: _red, size: 18),
               label: const Text("Delete My Account",
-                  style: TextStyle(
-                      color: _red, fontWeight: FontWeight.w700)),
+                  style: TextStyle(color: _red, fontWeight: FontWeight.w700)),
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 side: const BorderSide(color: _red, width: 1.5),
@@ -1135,9 +1422,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
     );
   }
 
-  // ─────────────────────────────────────────
-  //  REUSABLE WIDGETS
-  // ─────────────────────────────────────────
   Widget _sectionCard({
     required String title,
     required IconData icon,
@@ -1150,11 +1434,10 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
       decoration: BoxDecoration(
         color: _card,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: const [
           BoxShadow(
-              color: Color(0x0A000000),
-              blurRadius: 14,
-              offset: Offset(0, 4)),
+              color: Color(0x0A000000), blurRadius: 14, offset: Offset(0, 4)),
         ],
       ),
       child: Column(
@@ -1234,8 +1517,7 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
       style: const TextStyle(fontSize: 14, color: _textDark),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle:
-            const TextStyle(fontSize: 13, color: _textLight),
+        hintStyle: const TextStyle(fontSize: 13, color: _textLight),
         prefixIcon: Icon(icon, color: _primary, size: 20),
         filled: true,
         fillColor: const Color(0xFFF8FAFC),
@@ -1262,36 +1544,39 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(12),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(13),
+              ),
+              child: Icon(icon, color: color, size: 20),
             ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: const TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
-                        color: _textDark)),
-                Text(subtitle,
-                    style: const TextStyle(
-                        fontSize: 12, color: _textLight)),
-              ],
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title,
+                      style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                          color: _textDark)),
+                  const SizedBox(height: 2),
+                  Text(subtitle,
+                      style: const TextStyle(fontSize: 12, color: _textLight)),
+                ],
+              ),
             ),
-          ),
-          const Icon(Icons.chevron_right_rounded,
-              color: _textLight, size: 20),
-        ],
+            const Icon(Icons.chevron_right_rounded,
+                color: _textLight, size: 20),
+          ],
+        ),
       ),
     );
   }
@@ -1317,8 +1602,8 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
           foregroundColor: Colors.white,
           disabledBackgroundColor: _primary.withOpacity(0.6),
           padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
           elevation: 0,
         ),
       ),
@@ -1334,9 +1619,6 @@ class _WorkerProfileScreenState extends State<WorkerProfileScreen> {
       const Divider(height: 24, color: Color(0xFFE2E8F0));
 }
 
-// ─────────────────────────────────────────
-//  DATA MODEL
-// ─────────────────────────────────────────
 class _Badge {
   final String emoji;
   final String title;

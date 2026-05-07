@@ -92,7 +92,7 @@ class _DeliveryListScreenState extends State<DeliveryListScreen> {
           final orders = docs.map((doc) {
             return OrderModel.fromMap(
               doc.id,
-              doc.data() as Map<String, dynamic>,
+              doc.data(),
             );
           }).toList();
           orders.sort((a, b) => b.createdAt.compareTo(a.createdAt));
@@ -112,7 +112,6 @@ class _DeliveryListScreenState extends State<DeliveryListScreen> {
   /// 🔥 ORDER CARD (PREMIUM UI)
   Widget _orderCard(OrderModel order) {
     final status = order.statusText;
-    final color = _statusColor(status);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 18),
@@ -191,12 +190,47 @@ class _DeliveryListScreenState extends State<DeliveryListScreen> {
           const SizedBox(height: 14),
 
           /// INFO
-          Row(
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
             children: [
               _chip(Icons.timer, "${order.eta} min"),
-              const SizedBox(width: 10),
               _chip(Icons.place, "${order.distance} km"),
+              _chip(Icons.currency_rupee_rounded,
+                  order.payout > 0 ? order.payout.toStringAsFixed(0) : "0"),
             ],
+          ),
+
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.14),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: Colors.white.withOpacity(0.18)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.account_balance_wallet_outlined,
+                    color: Colors.white, size: 18),
+                const SizedBox(width: 8),
+                const Expanded(
+                  child: Text(
+                    "Order earning",
+                    style: TextStyle(
+                        color: Colors.white70, fontWeight: FontWeight.w600),
+                  ),
+                ),
+                Text(
+                  "₹${order.payout.toStringAsFixed(0)}",
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
           ),
 
           const SizedBox(height: 14),
@@ -215,7 +249,7 @@ class _DeliveryListScreenState extends State<DeliveryListScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (_) => const NavigationScreen(),
+                        builder: (_) => NavigationScreen(order: order),
                       ),
                     );
                   },

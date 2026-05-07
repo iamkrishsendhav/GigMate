@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'admin_orders_screen.dart';
 import 'admin_workers_screen.dart';
+import 'admin_profile_screen.dart';
 // import 'admin_analytics_screen.dart';
 import 'admin_live_tracking_screen.dart';
-import 'admin_analytics_screen.dart' hide AdminLiveTrackingScreen;
+import 'admin_analytics_screen.dart';
 import 'package:gigmate/services/order_service.dart';
 import 'package:gigmate/services/user_service.dart';
-import 'package:gigmate/models/order_model.dart';
-import 'package:gigmate/models/user_model.dart';
 
 // ═══════════════════════════════════════════════════════════════════
 //  AdminDashboard — GigMate Pro
@@ -30,7 +30,6 @@ class _AdminDashboardState extends State<AdminDashboard> {
   static const _textLight = Color(0xFF94A3B8);
   static const _red = Color(0xFFEF4444);
   static const _green = Color(0xFF10B981);
-  static const _amber = Color(0xFFF59E0B);
 
   int _tab = 0;
   int _alertCount = 0;
@@ -60,20 +59,28 @@ class _AdminDashboardState extends State<AdminDashboard> {
   }
 
   Widget _screen(int i) {
+    late final Widget child;
     switch (i) {
       case 0:
-        return const _OverviewTab();
+        child = const _OverviewTab();
+        break;
       case 1:
-        return const AdminOrdersScreen();
+        child = const AdminOrdersScreen();
+        break;
       case 2:
-        return const AdminWorkersScreen();
+        child = const AdminWorkersScreen();
+        break;
       case 3:
-        return const AdminAnalyticsScreen();
+        child = const AdminAnalyticsScreen();
+        break;
       case 4:
-        return const AdminLiveTrackingScreen();
+        child = const AdminLiveTrackingScreen();
+        break;
       default:
-        return const _OverviewTab();
+        child = const _OverviewTab();
     }
+
+    return Material(color: Colors.transparent, child: child);
   }
 
   // ═══ BUILD ═══════════════════════════════════════════════════════
@@ -123,100 +130,111 @@ class _AdminDashboardState extends State<AdminDashboard> {
           end: Alignment.bottomCenter,
         ),
       ),
-      child: Column(
-        children: [
-          const SizedBox(height: 28),
-          if (!compact) ...[
-            Container(
-              width: 52,
-              height: 52,
-              decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.18),
-                  borderRadius: BorderRadius.circular(16)),
-              child: const Icon(Icons.local_shipping_rounded,
-                  color: Colors.white, size: 28),
-            ),
-            const SizedBox(height: 10),
-            const Text("GigMate",
-                style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.w900)),
-            const Text("Admin Panel",
-                style: TextStyle(color: Colors.white54, fontSize: 12)),
-            const SizedBox(height: 32),
-          ] else ...[
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.18),
-                  borderRadius: BorderRadius.circular(13)),
-              child: const Icon(Icons.local_shipping_rounded,
-                  color: Colors.white, size: 20),
-            ),
-            const SizedBox(height: 24),
-          ],
-          ...List.generate(
-              _navItems.length, (i) => _sideItem(_navItems[i], i, compact)),
-          const Spacer(),
-          if (!compact)
-            Padding(
-              padding: const EdgeInsets.all(14),
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white.withOpacity(0.15)),
-                ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.only(top: 24, bottom: 12),
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(children: [
+                    if (!compact) ...[
                       Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                              color: Color(0xFF10B981),
-                              shape: BoxShape.circle)),
-                      const SizedBox(width: 8),
-                      const Text("System Online",
+                        width: 52,
+                        height: 52,
+                        decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.18),
+                            borderRadius: BorderRadius.circular(16)),
+                        child: const Icon(Icons.local_shipping_rounded,
+                            color: Colors.white, size: 28),
+                      ),
+                      const SizedBox(height: 10),
+                      const Text("GigMate",
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900)),
+                      const Text("Admin Panel",
                           style:
-                              TextStyle(color: Colors.white70, fontSize: 11)),
-                    ]),
-                    const SizedBox(height: 6),
-                    const Text("All services active",
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 10),
-                    GestureDetector(
-                      onTap: _logout,
-                      child: const Row(children: [
-                        Icon(Icons.logout_rounded,
-                            color: Colors.white54, size: 15),
-                        SizedBox(width: 6),
-                        Text("Logout",
-                            style:
-                                TextStyle(color: Colors.white54, fontSize: 12)),
-                      ]),
-                    ),
+                              TextStyle(color: Colors.white54, fontSize: 12)),
+                      const SizedBox(height: 28),
+                    ] else ...[
+                      Container(
+                        width: 40,
+                        height: 40,
+                        decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.18),
+                            borderRadius: BorderRadius.circular(13)),
+                        child: const Icon(Icons.local_shipping_rounded,
+                            color: Colors.white, size: 20),
+                      ),
+                      const SizedBox(height: 22),
+                    ],
+                    ...List.generate(_navItems.length,
+                        (i) => _sideItem(_navItems[i], i, compact)),
                   ],
                 ),
               ),
-            )
-          else
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: GestureDetector(
-                onTap: _logout,
-                child: const Icon(Icons.logout_rounded,
-                    color: Colors.white54, size: 20),
-              ),
             ),
-        ],
+            if (!compact)
+              Padding(
+                padding: const EdgeInsets.all(14),
+                child: Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: Colors.white.withOpacity(0.15)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Row(children: [
+                        Container(
+                            width: 8,
+                            height: 8,
+                            decoration: const BoxDecoration(
+                                color: Color(0xFF10B981),
+                                shape: BoxShape.circle)),
+                        const SizedBox(width: 8),
+                        const Text("System Online",
+                            style:
+                                TextStyle(color: Colors.white70, fontSize: 11)),
+                      ]),
+                      const SizedBox(height: 6),
+                      const Text("All services active",
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 10),
+                      GestureDetector(
+                        onTap: _logout,
+                        child: const Row(children: [
+                          Icon(Icons.logout_rounded,
+                              color: Colors.white54, size: 15),
+                          SizedBox(width: 6),
+                          Text("Logout",
+                              style: TextStyle(
+                                  color: Colors.white54, fontSize: 12)),
+                        ]),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: GestureDetector(
+                  onTap: _logout,
+                  child: const Icon(Icons.logout_rounded,
+                      color: Colors.white54, size: 20),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -308,7 +326,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
           _chip("● Live", _green, null),
           const SizedBox(width: 8),
           _chip("🔔 $_alertCount", _alertCount > 0 ? _red : _textLight,
-              _showAlerts),
+              _showDetailedAlerts),
           const SizedBox(width: 10),
           GestureDetector(
             onTap: _adminMenu,
@@ -441,56 +459,536 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  void _adminMenu() {
-    showModalBottomSheet(
+  void _showDetailedAlerts() {
+    showDialog(
       context: context,
-      backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      barrierColor: Colors.black.withValues(alpha: 0.45),
+      builder: (_) => StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance
+            .collection('alerts')
+            .orderBy('time', descending: true)
+            .limit(10)
+            .snapshots(),
+        builder: (_, snap) {
+          final docs = snap.data?.docs ?? [];
+          return AlertDialog(
+            backgroundColor: Colors.white,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            titlePadding: const EdgeInsets.fromLTRB(22, 20, 16, 0),
+            contentPadding: const EdgeInsets.fromLTRB(22, 16, 22, 8),
+            title: Row(
+              children: [
+                Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: _red.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(Icons.warning_amber_rounded,
+                      color: _red, size: 23),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Worker Alerts",
+                          style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900,
+                              color: _textDark)),
+                      SizedBox(height: 2),
+                      Text("Worker, SOS and live location details",
+                          style: TextStyle(
+                              fontSize: 12,
+                              color: _textLight,
+                              fontWeight: FontWeight.w600)),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: "Close",
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 620,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 520),
+                child: docs.isEmpty
+                    ? Container(
+                        padding: const EdgeInsets.all(22),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: const Center(
+                          child: Text("No active alerts",
+                              style: TextStyle(
+                                  color: _textLight,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700)),
+                        ),
+                      )
+                    : ListView.separated(
+                        shrinkWrap: true,
+                        itemCount: docs.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 10),
+                        itemBuilder: (_, i) {
+                          final doc = docs[i];
+                          final data = doc.data() as Map;
+                          final workerId =
+                              (data['workerId'] ?? '').toString().trim();
+                          if (workerId.isEmpty) {
+                            return _alertCard(
+                              alertRef: doc.reference,
+                              alert: data,
+                              workerId: null,
+                              worker: null,
+                            );
+                          }
+                          return StreamBuilder<
+                              DocumentSnapshot<Map<String, dynamic>>>(
+                            stream: FirebaseFirestore.instance
+                                .collection('workers')
+                                .doc(workerId)
+                                .snapshots(),
+                            builder: (_, workerSnap) => _alertCard(
+                              alertRef: doc.reference,
+                              alert: data,
+                              workerId: workerId,
+                              worker: workerSnap.data?.data(),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  for (final d in docs) {
+                    d.reference.update({'read': true});
+                  }
+                  Navigator.pop(context);
+                },
+                child: const Text("Mark all read"),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _alertCard({
+    required DocumentReference alertRef,
+    required Map alert,
+    required String? workerId,
+    required Map<String, dynamic>? worker,
+  }) {
+    final type = (alert['type'] ?? 'Alert').toString();
+    final isSOS = type.toUpperCase() == 'SOS';
+    final read = alert['read'] == true;
+    final resolved = alert['resolved'] == true;
+    final name = (worker?['name'] ??
+            worker?['displayName'] ??
+            worker?['fullName'] ??
+            (workerId == null ? 'Unknown worker' : 'Worker'))
+        .toString();
+    final phone =
+        (worker?['phone'] ?? worker?['mobile'] ?? 'Not available').toString();
+    final email = (worker?['email'] ?? 'Not available').toString();
+    final vehicle =
+        (worker?['vehicleNo'] ?? worker?['vehicleNumber'] ?? 'Not available')
+            .toString();
+    final online = worker?['isOnline'] == true;
+    final orderId =
+        (alert['orderId'] ?? worker?['currentOrderId'] ?? '').toString();
+    final lat = _doubleValue(worker?['lat']) ?? _doubleValue(alert['lat']);
+    final lng = _doubleValue(worker?['lng']) ?? _doubleValue(alert['lng']);
+    final locationText = lat != null && lng != null
+        ? '${lat.toStringAsFixed(5)}, ${lng.toStringAsFixed(5)}'
+        : 'Location not available';
+    final accent = resolved ? _green : (isSOS ? _red : const Color(0xFFF59E0B));
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: resolved ? const Color(0xFFF8FAFC) : Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: accent.withValues(alpha: 0.22)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x07000000),
+            blurRadius: 12,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  isSOS ? Icons.emergency_rounded : Icons.warning_amber_rounded,
+                  color: accent,
+                  size: 23,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${isSOS ? 'SOS Alert' : type} - $name',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: _textDark,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                        ),
+                        _miniStatus(
+                          resolved ? 'Resolved' : (read ? 'Read' : 'New'),
+                          resolved ? _green : (read ? _textLight : _red),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _timeText(alert['time']),
+                      style: const TextStyle(
+                          color: _textLight,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _alertInfoChip(
+                  Icons.circle,
+                  online ? 'Online now' : 'Offline/unknown',
+                  online ? _green : _textLight),
+              _alertInfoChip(Icons.location_on_rounded, locationText, _primary),
+              if (orderId.isNotEmpty)
+                _alertInfoChip(Icons.receipt_long_rounded, '#$orderId',
+                    const Color(0xFF1D4ED8)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          _alertDetailRow(Icons.badge_outlined, 'Worker ID',
+              workerId?.isNotEmpty == true ? workerId! : 'Not attached'),
+          _alertDetailRow(Icons.phone_outlined, 'Phone', phone),
+          _alertDetailRow(Icons.mail_outline_rounded, 'Email', email),
+          _alertDetailRow(Icons.two_wheeler_rounded, 'Vehicle', vehicle),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: lat == null || lng == null
+                      ? null
+                      : () {
+                          Navigator.pop(context);
+                          setState(() => _tab = 4);
+                        },
+                  icon: const Icon(Icons.my_location_rounded, size: 17),
+                  label: const Text('Live Tracking'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: _primary,
+                    side: BorderSide(color: _primary.withValues(alpha: 0.3)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              TextButton(
+                onPressed: () => alertRef.update({'read': true}),
+                child: const Text('Mark read'),
+              ),
+              TextButton(
+                onPressed: () => _resolveAlert(alertRef, workerId),
+                child: const Text('Resolve'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _miniStatus(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(text,
+          style: TextStyle(
+              color: color, fontSize: 10, fontWeight: FontWeight.w900)),
+    );
+  }
+
+  Widget _alertInfoChip(IconData icon, String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.14)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 13),
+          const SizedBox(width: 5),
+          Text(text,
+              style: TextStyle(
+                  color: color, fontSize: 11, fontWeight: FontWeight.w800)),
+        ],
+      ),
+    );
+  }
+
+  Widget _alertDetailRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Icon(icon, color: _textLight, size: 16),
+          const SizedBox(width: 8),
+          SizedBox(
+            width: 74,
+            child: Text(label,
+                style: const TextStyle(
+                    color: _textLight,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700)),
+          ),
+          Expanded(
+            child: Text(value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                    color: _textDark,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _resolveAlert(DocumentReference alertRef, String? workerId) async {
+    await alertRef.update({'read': true, 'resolved': true});
+    if (workerId != null && workerId.isNotEmpty) {
+      await FirebaseFirestore.instance
+          .collection('workers')
+          .doc(workerId)
+          .set({'hasSOS': false}, SetOptions(merge: true));
+    }
+  }
+
+  static double? _doubleValue(dynamic value) {
+    if (value is num) return value.toDouble();
+    return null;
+  }
+
+  static String _timeText(dynamic value) {
+    DateTime? date;
+    if (value is Timestamp) date = value.toDate();
+    if (value is DateTime) date = value;
+    if (date == null) return 'Time not available';
+    final hour = date.hour == 0
+        ? 12
+        : date.hour > 12
+            ? date.hour - 12
+            : date.hour;
+    final minute = date.minute.toString().padLeft(2, '0');
+    final period = date.hour >= 12 ? 'PM' : 'AM';
+    return '${date.day}/${date.month}/${date.year}, $hour:$minute $period';
+  }
+
+  void _adminMenu() {
+    final user = FirebaseAuth.instance.currentUser;
+    final email = user?.email ?? "admin@gigmate.com";
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.45),
+      builder: (_) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        backgroundColor: Colors.transparent,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 460, maxHeight: 560),
+          child: Material(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(26),
+            clipBehavior: Clip.antiAlias,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 22, 24, 20),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF093D38), Color(0xFF0F766E)],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Column(
+                      children: [
+                        CircleAvatar(
+                          radius: 34,
+                          backgroundColor: Colors.white.withValues(alpha: 0.16),
+                          child: const Icon(Icons.admin_panel_settings_rounded,
+                              color: Colors.white, size: 34),
+                        ),
+                        const SizedBox(height: 12),
+                        const Text("Admin",
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900)),
+                        const SizedBox(height: 4),
+                        Text(
+                          email,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                              fontSize: 12, color: Colors.white70),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  _adminMenuTile(
+                    icon: Icons.person_outline_rounded,
+                    title: "Admin Profile",
+                    subtitle: "View profile, role and access details",
+                    color: _primary,
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => const AdminProfileScreen()));
+                    },
+                  ),
+                  _adminMenuTile(
+                    icon: Icons.settings_outlined,
+                    title: "Settings",
+                    subtitle: "Manage admin controls",
+                    color: const Color(0xFF6366F1),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _QuickActionsGrid.openSettings(context);
+                    },
+                  ),
+                  _adminMenuTile(
+                    icon: Icons.logout_rounded,
+                    title: "Logout",
+                    subtitle: "Sign out from this admin session",
+                    color: _red,
+                    onTap: () {
+                      Navigator.pop(context);
+                      _logout();
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 36,
-              height: 4,
-              margin: const EdgeInsets.only(bottom: 20),
-              decoration: BoxDecoration(
-                  color: const Color(0xFFE2E8F0),
-                  borderRadius: BorderRadius.circular(999)),
-            ),
-            const CircleAvatar(
-              radius: 28,
-              backgroundColor: Color(0xFF0F766E),
-              child: Icon(Icons.person_rounded, color: Colors.white, size: 28),
-            ),
-            const SizedBox(height: 10),
-            const Text("Admin",
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
-            Text(
-              FirebaseAuth.instance.currentUser?.email ?? "admin@gigmate.com",
-              style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8)),
-            ),
-            const SizedBox(height: 20),
-            ListTile(
-              leading: const Icon(Icons.settings_outlined),
-              title: const Text("Settings"),
-              onTap: () => Navigator.pop(context),
-            ),
-            ListTile(
-              leading:
-                  const Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
-              title: const Text("Logout",
-                  style: TextStyle(color: Color(0xFFEF4444))),
-              onTap: () {
-                Navigator.pop(context);
-                _logout();
-              },
-            ),
-          ],
+      ),
+    );
+  }
+
+  Widget _adminMenuTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.07),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: color.withValues(alpha: 0.14)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(13),
+                ),
+                child: Icon(icon, color: color, size: 22),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title,
+                        style: TextStyle(
+                            color: color,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w900)),
+                    const SizedBox(height: 2),
+                    Text(subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            color: Color(0xFF64748B), fontSize: 12)),
+                  ],
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: color, size: 20),
+            ],
+          ),
         ),
       ),
     );
@@ -547,7 +1045,7 @@ class _OverviewTab extends StatelessWidget {
           // ── Recent activity
           const _SectionTitle("Recent Activity"),
           const SizedBox(height: 12),
-          _RecentActivity(),
+          _RecentActivityV2(),
 
           const SizedBox(height: 24),
 
@@ -569,10 +1067,7 @@ class _RealtimeKpiGrid extends StatelessWidget {
       stream: FirebaseFirestore.instance.collection('orders').snapshots(),
       builder: (_, ordSnap) {
         return StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('users')
-              .where('role', isEqualTo: 'worker')
-              .snapshots(),
+          stream: FirebaseFirestore.instance.collection('workers').snapshots(),
           builder: (_, wrkSnap) {
             final orders = ordSnap.data?.docs ?? [];
             final workers = wrkSnap.data?.docs ?? [];
@@ -584,15 +1079,35 @@ class _RealtimeKpiGrid extends StatelessWidget {
             final activeWorkers = workers
                 .where((w) => (w.data() as Map)['isOnline'] == true)
                 .length;
-            final onBreak = workers
-                .where((w) => (w.data() as Map)['currentOrderId'] == null)
+            final onBreak = workers.where((w) {
+              final data = w.data() as Map;
+              return data['isOnBreak'] == true || data['status'] == 'break';
+            }).length;
+            final assignedOrders = orders.where((o) {
+              final data = o.data() as Map;
+              final workerId = data['assignedWorkerId'] ??
+                  data['workerId'] ??
+                  data['acceptedBy'];
+              return workerId != null && workerId.toString().isNotEmpty;
+            }).length;
+            final pendingOrders = orders
+                .where((o) => (o.data() as Map)['status'] == 'pending')
                 .length;
+            final offlineWorkers = workers.length - activeWorkers;
+
+            final width = MediaQuery.of(context).size.width;
+            final crossAxisCount = width < 680 ? 1 : 2;
+            final aspectRatio = width < 680
+                ? 2.7
+                : width < 1100
+                    ? 2.8
+                    : 3.3;
 
             return GridView.count(
-              crossAxisCount: 2,
+              crossAxisCount: crossAxisCount,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
-              childAspectRatio: 3.3,
+              childAspectRatio: aspectRatio,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               children: [
@@ -602,6 +1117,18 @@ class _RealtimeKpiGrid extends StatelessWidget {
                   value: "$totalOrders",
                   sub: "All time",
                   gradient: const [Color(0xFF0F766E), Color(0xFF14B8A6)],
+                  onTap: () => _showKpiDetails(
+                    context,
+                    title: "Total Orders",
+                    icon: Icons.receipt_long_rounded,
+                    color: const Color(0xFF0F766E),
+                    rows: [
+                      _KpiDetail("All orders", "$totalOrders"),
+                      _KpiDetail("Pending", "$pendingOrders"),
+                      _KpiDetail("Assigned", "$assignedOrders"),
+                      _KpiDetail("Delivered", "$delivered"),
+                    ],
+                  ),
                 ),
                 _KpiCard(
                   icon: Icons.people_alt_rounded,
@@ -609,6 +1136,18 @@ class _RealtimeKpiGrid extends StatelessWidget {
                   value: "$activeWorkers",
                   sub: "$onBreak on break",
                   gradient: const [Color(0xFF1D4ED8), Color(0xFF3B82F6)],
+                  onTap: () => _showKpiDetails(
+                    context,
+                    title: "Active Workers",
+                    icon: Icons.people_alt_rounded,
+                    color: const Color(0xFF1D4ED8),
+                    rows: [
+                      _KpiDetail("Online now", "$activeWorkers"),
+                      _KpiDetail("On break", "$onBreak"),
+                      _KpiDetail("Offline", "$offlineWorkers"),
+                      _KpiDetail("Registered workers", "${workers.length}"),
+                    ],
+                  ),
                 ),
                 _KpiCard(
                   icon: Icons.check_circle_outline,
@@ -618,6 +1157,23 @@ class _RealtimeKpiGrid extends StatelessWidget {
                       ? "${((delivered / totalOrders) * 100).toStringAsFixed(0)}% success"
                       : "0%",
                   gradient: const [Color(0xFF10B981), Color(0xFF34D399)],
+                  onTap: () => _showKpiDetails(
+                    context,
+                    title: "Delivered Orders",
+                    icon: Icons.check_circle_outline,
+                    color: const Color(0xFF10B981),
+                    rows: [
+                      _KpiDetail("Delivered", "$delivered"),
+                      _KpiDetail(
+                        "Success rate",
+                        totalOrders > 0
+                            ? "${((delivered / totalOrders) * 100).toStringAsFixed(0)}%"
+                            : "0%",
+                      ),
+                      _KpiDetail("Total orders", "$totalOrders"),
+                      _KpiDetail("Still open", "${totalOrders - delivered}"),
+                    ],
+                  ),
                 ),
                 _KpiCard(
                   icon: Icons.people_outline_rounded,
@@ -625,6 +1181,18 @@ class _RealtimeKpiGrid extends StatelessWidget {
                   value: "${workers.length}",
                   sub: "Registered",
                   gradient: const [Color(0xFFF59E0B), Color(0xFFFBBF24)],
+                  onTap: () => _showKpiDetails(
+                    context,
+                    title: "Total Workers",
+                    icon: Icons.people_outline_rounded,
+                    color: const Color(0xFFF59E0B),
+                    rows: [
+                      _KpiDetail("Registered", "${workers.length}"),
+                      _KpiDetail("Active", "$activeWorkers"),
+                      _KpiDetail("On break", "$onBreak"),
+                      _KpiDetail("Offline", "$offlineWorkers"),
+                    ],
+                  ),
                 ),
               ],
             );
@@ -633,6 +1201,114 @@ class _RealtimeKpiGrid extends StatelessWidget {
       },
     );
   }
+
+  static void _showKpiDetails(
+    BuildContext context, {
+    required String title,
+    required IconData icon,
+    required Color color,
+    required List<_KpiDetail> rows,
+  }) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.45),
+      builder: (_) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        backgroundColor: Colors.transparent,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520, maxHeight: 560),
+          child: Material(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(26),
+            clipBehavior: Clip.antiAlias,
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(22, 20, 22, 22),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 42,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 18),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE2E8F0),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: color.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(15),
+                        ),
+                        child: Icon(icon, color: color, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          title,
+                          style: const TextStyle(
+                            fontSize: 19,
+                            fontWeight: FontWeight.w900,
+                            color: Color(0xFF0F172A),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 18),
+                  ...rows.map((row) => Container(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 14, vertical: 13),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8FAFC),
+                          borderRadius: BorderRadius.circular(14),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                row.label,
+                                style: const TextStyle(
+                                  color: Color(0xFF64748B),
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                            Text(
+                              row.value,
+                              style: TextStyle(
+                                color: color,
+                                fontSize: 17,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _KpiDetail {
+  final String label;
+  final String value;
+  const _KpiDetail(this.label, this.value);
 }
 
 // ── Recent activity (real Firestore alerts + orders)
@@ -643,7 +1319,7 @@ class _RecentActivity extends StatelessWidget {
       stream: FirebaseFirestore.instance
           .collection('alerts')
           .orderBy('time', descending: true)
-          .limit(5)
+          .limit(3)
           .snapshots(),
       builder: (_, snap) {
         final docs = snap.data?.docs ?? [];
@@ -733,6 +1409,177 @@ class _RecentActivity extends StatelessWidget {
 }
 
 // ── Quick actions grid — functional
+class _RecentActivityV2 extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('alerts')
+          .orderBy('time', descending: true)
+          .limit(5)
+          .snapshots(),
+      builder: (_, alertSnap) {
+        return StreamBuilder<QuerySnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('orders')
+              .orderBy('createdAt', descending: true)
+              .limit(3)
+              .snapshots(),
+          builder: (_, orderSnap) {
+            final activities = <_ActivityItem>[
+              ...(alertSnap.data?.docs ?? []).map((doc) {
+                final data = doc.data() as Map;
+                final type = (data['type'] ?? 'Alert').toString();
+                final isSOS = type.toUpperCase() == 'SOS';
+                return _ActivityItem(
+                  title: isSOS ? 'SOS Alert' : type,
+                  subtitle:
+                      'Lat: ${_numText(data['lat'])}, Lng: ${_numText(data['lng'])}',
+                  icon: isSOS
+                      ? Icons.emergency_rounded
+                      : Icons.warning_amber_rounded,
+                  color:
+                      isSOS ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
+                  time: _asDate(data['time']),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const AdminLiveTrackingScreen())),
+                );
+              }),
+              ...(orderSnap.data?.docs ?? []).map((doc) {
+                final data = doc.data() as Map;
+                final status = (data['status'] ?? 'pending').toString();
+                final pickup = (data['pickup'] ?? 'Pickup pending').toString();
+                final drop = (data['drop'] ?? 'Drop pending').toString();
+                return _ActivityItem(
+                  title: 'Order ${_niceStatus(status)}',
+                  subtitle: '$pickup -> $drop',
+                  icon: Icons.receipt_long_rounded,
+                  color: _statusColor(status),
+                  time: _asDate(data['createdAt']),
+                  onTap: () => Navigator.of(context).push(MaterialPageRoute(
+                      builder: (_) => const AdminOrdersScreen())),
+                );
+              }),
+            ]..sort((a, b) => b.time.compareTo(a.time));
+
+            final visible = activities.take(3).toList();
+            if (visible.isEmpty) return _emptyActivity();
+            return Column(
+              children: visible.map((item) => _activityTile(item)).toList(),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  static Widget _emptyActivity() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: const Center(
+        child: Text("No recent activity",
+            style: TextStyle(color: Color(0xFF94A3B8), fontSize: 13)),
+      ),
+    );
+  }
+
+  static Widget _activityTile(_ActivityItem item) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: item.color.withOpacity(0.18)),
+      ),
+      child: ListTile(
+        onTap: item.onTap,
+        contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        leading: Container(
+          width: 42,
+          height: 42,
+          decoration: BoxDecoration(
+            color: item.color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(item.icon, color: item.color, size: 21),
+        ),
+        title: Text(item.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF0F172A))),
+        subtitle: Text(item.subtitle,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+        trailing: const Icon(Icons.chevron_right_rounded,
+            color: Color(0xFF94A3B8), size: 18),
+      ),
+    );
+  }
+
+  static DateTime _asDate(dynamic value) {
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    return DateTime.fromMillisecondsSinceEpoch(0);
+  }
+
+  static String _numText(dynamic value) {
+    if (value is num) return value.toStringAsFixed(3);
+    return '0.000';
+  }
+
+  static String _niceStatus(String status) {
+    return status
+        .replaceAll('_', ' ')
+        .split(' ')
+        .map((word) => word.isEmpty
+            ? word
+            : '${word[0].toUpperCase()}${word.substring(1)}')
+        .join(' ');
+  }
+
+  static Color _statusColor(String status) {
+    switch (status) {
+      case 'delivered':
+        return const Color(0xFF10B981);
+      case 'cancelled':
+      case 'rejected':
+        return const Color(0xFFEF4444);
+      case 'picked':
+      case 'on_the_way':
+        return const Color(0xFF3B82F6);
+      default:
+        return const Color(0xFF0F766E);
+    }
+  }
+}
+
+class _ActivityItem {
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
+  final DateTime time;
+  final VoidCallback onTap;
+
+  const _ActivityItem({
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+    required this.time,
+    required this.onTap,
+  });
+}
+
 class _QuickActionsGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -742,20 +1589,31 @@ class _QuickActionsGrid extends StatelessWidget {
       _QA(Icons.person_add_rounded, "Add Worker", const Color(0xFF1D4ED8),
           () => _addWorker(context)),
       _QA(Icons.download_rounded, "Export", const Color(0xFF10B981),
-          () => _snack(context, "Export coming soon")),
+          () => _exportData(context)),
       _QA(Icons.notifications_active_rounded, "Broadcast",
           const Color(0xFFF59E0B), () => _broadcast(context)),
-      _QA(Icons.map_rounded, "Live Map", const Color(0xFFEA580C),
-          () => _snack(context, "Open maps")),
+      _QA(
+          Icons.map_rounded,
+          "Live Map",
+          const Color(0xFFEA580C),
+          () => Navigator.of(context).push(MaterialPageRoute(
+              builder: (_) => const AdminLiveTrackingScreen()))),
       _QA(Icons.settings_rounded, "Settings", const Color(0xFF6366F1),
-          () => _snack(context, "Settings coming soon")),
+          () => openSettings(context)),
     ];
 
+    final width = MediaQuery.of(context).size.width;
+    final crossAxisCount = width < 640
+        ? 2
+        : width < 1000
+            ? 3
+            : 3;
+
     return GridView.count(
-      crossAxisCount: 3,
+      crossAxisCount: crossAxisCount,
       crossAxisSpacing: 10,
       mainAxisSpacing: 10,
-      childAspectRatio: 2.0,
+      childAspectRatio: width < 640 ? 1.28 : 2.0,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       children: actions
@@ -804,6 +1662,9 @@ class _QuickActionsGrid extends StatelessWidget {
   static void _newOrder(BuildContext context) {
     final pickupCtrl = TextEditingController();
     final dropCtrl = TextEditingController();
+    final distanceCtrl = TextEditingController();
+    final etaCtrl = TextEditingController();
+    final chargeCtrl = TextEditingController();
     String priority = "Normal";
 
     showModalBottomSheet(
@@ -833,6 +1694,23 @@ class _QuickActionsGrid extends StatelessWidget {
                     "Pickup Location", pickupCtrl, Icons.location_on_outlined),
                 const SizedBox(height: 12),
                 _inputField("Drop Location", dropCtrl, Icons.flag_outlined),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _inputField("Distance (km)", distanceCtrl,
+                          Icons.near_me_outlined),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _inputField(
+                          "ETA (min)", etaCtrl, Icons.schedule_rounded),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                _inputField("Delivery charge", chargeCtrl,
+                    Icons.currency_rupee_rounded),
                 const SizedBox(height: 16),
                 const Text("Priority",
                     style: TextStyle(
@@ -873,8 +1751,9 @@ class _QuickActionsGrid extends StatelessWidget {
                   height: 50,
                   child: ElevatedButton(
                     onPressed: () async {
-                      if (pickupCtrl.text.isEmpty || dropCtrl.text.isEmpty)
+                      if (pickupCtrl.text.isEmpty || dropCtrl.text.isEmpty) {
                         return;
+                      }
                       // await FirebaseFirestore.instance
                       //     .collection('orders')
                       //     .add({
@@ -892,6 +1771,9 @@ class _QuickActionsGrid extends StatelessWidget {
                       await OrderService().createOrder(
                         pickup: pickupCtrl.text.trim(),
                         drop: dropCtrl.text.trim(),
+                        distance: double.tryParse(distanceCtrl.text.trim()),
+                        eta: int.tryParse(etaCtrl.text.trim()),
+                        deliveryCharge: double.tryParse(chargeCtrl.text.trim()),
                       );
                       Navigator.pop(ctx);
                       _snack(context, "✅ Order created successfully!");
@@ -996,8 +1878,9 @@ class _QuickActionsGrid extends StatelessWidget {
                   height: 50,
                   child: ElevatedButton(
                     onPressed: () async {
-                      if (nameCtrl.text.isEmpty || emailCtrl.text.isEmpty)
+                      if (nameCtrl.text.isEmpty || emailCtrl.text.isEmpty) {
                         return;
+                      }
                       // await FirebaseFirestore.instance
                       //     .collection('workers')
                       //     .add({
@@ -1014,12 +1897,23 @@ class _QuickActionsGrid extends StatelessWidget {
                       //   'role': 'worker',
                       //   'createdAt': FieldValue.serverTimestamp(),
                       // });
+                      final workerId =
+                          DateTime.now().millisecondsSinceEpoch.toString();
                       await UserService().createUser(
-                        uid: DateTime.now().millisecondsSinceEpoch.toString(),
+                        uid: workerId,
                         name: nameCtrl.text.trim(),
                         email: emailCtrl.text.trim(),
                         role: "worker",
                       );
+                      await FirebaseFirestore.instance
+                          .collection('workers')
+                          .doc(workerId)
+                          .set({
+                        'phone': phoneCtrl.text.trim(),
+                        'vehicleType': vehicle,
+                        'status': 'Active',
+                        'updatedAt': FieldValue.serverTimestamp(),
+                      }, SetOptions(merge: true));
                       Navigator.pop(ctx);
                       _snack(context, "✅ Worker added successfully!");
                     },
@@ -1034,6 +1928,283 @@ class _QuickActionsGrid extends StatelessWidget {
                             color: Colors.white,
                             fontWeight: FontWeight.w700,
                             fontSize: 15)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  static Future<void> _exportData(BuildContext context) async {
+    String exportType = 'Worker details';
+    final types = [
+      'Worker details',
+      'Worker history',
+      'Order history',
+      'Payments summary',
+    ];
+
+    await showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => StatefulBuilder(builder: (ctx, setSt) {
+        return Container(
+          padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _sheetHandle(),
+              const Text("Export Center",
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 8),
+              const Text("Generate CSV-style operational reports.",
+                  style: TextStyle(fontSize: 13, color: Color(0xFF94A3B8))),
+              const SizedBox(height: 18),
+              ...types.map((type) => RadioListTile<String>(
+                    value: type,
+                    groupValue: exportType,
+                    contentPadding: EdgeInsets.zero,
+                    activeColor: const Color(0xFF0F766E),
+                    title: Text(type,
+                        style: const TextStyle(fontWeight: FontWeight.w700)),
+                    subtitle: Text(_exportSubtitle(type),
+                        style: const TextStyle(
+                            fontSize: 12, color: Color(0xFF64748B))),
+                    onChanged: (value) => setSt(() => exportType = value!),
+                  )),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton.icon(
+                  onPressed: () async {
+                    final csv = await _buildExport(exportType);
+                    await Clipboard.setData(ClipboardData(text: csv));
+                    await FirebaseFirestore.instance
+                        .collection('admin_exports')
+                        .add({
+                      'type': exportType,
+                      'rows': csv.split('\n').length - 1,
+                      'createdAt': FieldValue.serverTimestamp(),
+                      'createdBy':
+                          FirebaseAuth.instance.currentUser?.email ?? 'Admin',
+                    });
+                    if (Navigator.canPop(ctx)) Navigator.pop(ctx);
+                    _snack(context, "$exportType copied and logged");
+                  },
+                  icon: const Icon(Icons.download_rounded,
+                      color: Colors.white, size: 18),
+                  label: const Text("Generate Export",
+                      style: TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.w800)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF10B981),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14)),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      }),
+    );
+  }
+
+  static String _exportSubtitle(String type) {
+    switch (type) {
+      case 'Worker history':
+        return 'Orders, online state, ratings and last activity.';
+      case 'Order history':
+        return 'Pickup, drop, status, charge and assignment data.';
+      case 'Payments summary':
+        return 'Delivery charge, tips, bonus and deductions.';
+      default:
+        return 'Name, email, phone, vehicle and account status.';
+    }
+  }
+
+  static Future<String> _buildExport(String type) async {
+    if (type == 'Order history' || type == 'Payments summary') {
+      final snap = await FirebaseFirestore.instance
+          .collection('orders')
+          .orderBy('createdAt', descending: true)
+          .limit(500)
+          .get();
+      final header = type == 'Payments summary'
+          ? 'orderId,workerId,charge,tip,bonus,deduction,status'
+          : 'orderId,pickup,drop,status,workerId,distance,eta,charge';
+      final rows = snap.docs.map((doc) {
+        final d = doc.data();
+        if (type == 'Payments summary') {
+          return [
+            doc.id,
+            d['assignedWorkerId'] ?? d['workerId'] ?? '',
+            d['deliveryCharge'] ?? d['charge'] ?? 0,
+            d['tip'] ?? 0,
+            d['bonus'] ?? 0,
+            d['deduction'] ?? 0,
+            d['status'] ?? '',
+          ].map(_csv).join(',');
+        }
+        return [
+          doc.id,
+          d['pickup'] ?? '',
+          d['drop'] ?? '',
+          d['status'] ?? '',
+          d['assignedWorkerId'] ?? d['workerId'] ?? '',
+          d['distance'] ?? 0,
+          d['eta'] ?? 0,
+          d['deliveryCharge'] ?? d['charge'] ?? 0,
+        ].map(_csv).join(',');
+      });
+      return ([header, ...rows]).join('\n');
+    }
+
+    final snap = await FirebaseFirestore.instance
+        .collection('workers')
+        .orderBy('name')
+        .limit(500)
+        .get();
+    final header = type == 'Worker history'
+        ? 'workerId,name,totalOrders,rating,isOnline,currentOrderId,lastSeen'
+        : 'workerId,name,email,phone,vehicleType,vehicleNo,status';
+    final rows = snap.docs.map((doc) {
+      final d = doc.data();
+      if (type == 'Worker history') {
+        return [
+          doc.id,
+          d['name'] ?? '',
+          d['totalOrders'] ?? 0,
+          d['rating'] ?? 0,
+          d['isOnline'] ?? false,
+          d['currentOrderId'] ?? '',
+          d['lastSeen'] ?? d['updatedAt'] ?? '',
+        ].map(_csv).join(',');
+      }
+      return [
+        doc.id,
+        d['name'] ?? '',
+        d['email'] ?? '',
+        d['phone'] ?? '',
+        d['vehicleType'] ?? '',
+        d['vehicleNo'] ?? '',
+        d['status'] ?? '',
+      ].map(_csv).join(',');
+    });
+    return ([header, ...rows]).join('\n');
+  }
+
+  static String _csv(Object? value) {
+    final text =
+        value is Timestamp ? value.toDate().toIso8601String() : '$value';
+    return '"${text.replaceAll('"', '""')}"';
+  }
+
+  static void openSettings(BuildContext context) {
+    bool autoAssign = true;
+    bool sosAlerts = true;
+    bool maintenance = false;
+    bool requireId = true;
+    bool liveTracking = true;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => StatefulBuilder(builder: (ctx, setSt) {
+        Widget tile(String title, String sub, bool value, ValueChanged<bool> fn,
+            IconData icon) {
+          return SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            activeColor: const Color(0xFF0F766E),
+            secondary: Icon(icon, color: const Color(0xFF0F766E)),
+            title: Text(title,
+                style: const TextStyle(fontWeight: FontWeight.w800)),
+            subtitle: Text(sub,
+                style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+            value: value,
+            onChanged: (v) => setSt(() => fn(v)),
+          );
+        }
+
+        return Container(
+          padding: const EdgeInsets.fromLTRB(24, 18, 24, 24),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sheetHandle(),
+                const Text("Admin Settings",
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+                const SizedBox(height: 14),
+                tile(
+                    "Auto assign orders",
+                    "Assign new orders to available workers.",
+                    autoAssign,
+                    (v) => autoAssign = v,
+                    Icons.route_rounded),
+                tile("SOS alert escalation", "Keep emergency alerts prominent.",
+                    sosAlerts, (v) => sosAlerts = v, Icons.sos_rounded),
+                tile("Live tracking", "Show online workers on the live map.",
+                    liveTracking, (v) => liveTracking = v, Icons.map_rounded),
+                tile("ID verification", "Require worker ID and profile checks.",
+                    requireId, (v) => requireId = v, Icons.badge_rounded),
+                tile(
+                    "Maintenance mode",
+                    "Pause worker actions during maintenance.",
+                    maintenance,
+                    (v) => maintenance = v,
+                    Icons.build_rounded),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton.icon(
+                    onPressed: () async {
+                      await FirebaseFirestore.instance
+                          .collection('admin_settings')
+                          .doc('global')
+                          .set({
+                        'autoAssign': autoAssign,
+                        'sosAlerts': sosAlerts,
+                        'maintenance': maintenance,
+                        'requireId': requireId,
+                        'liveTracking': liveTracking,
+                        'updatedAt': FieldValue.serverTimestamp(),
+                        'updatedBy':
+                            FirebaseAuth.instance.currentUser?.email ?? 'Admin',
+                      }, SetOptions(merge: true));
+                      if (Navigator.canPop(ctx)) Navigator.pop(ctx);
+                      _snack(context, "Settings saved");
+                    },
+                    icon: const Icon(Icons.save_rounded,
+                        color: Colors.white, size: 18),
+                    label: const Text("Save Settings",
+                        style: TextStyle(
+                            color: Colors.white, fontWeight: FontWeight.w800)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF6366F1),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                    ),
                   ),
                 ),
               ],
@@ -1090,15 +2261,42 @@ class _QuickActionsGrid extends StatelessWidget {
                 child: ElevatedButton.icon(
                   onPressed: () async {
                     if (msgCtrl.text.isEmpty) return;
-                    await FirebaseFirestore.instance
+                    final workers = await FirebaseFirestore.instance
+                        .collection('workers')
+                        .get();
+                    final batch = FirebaseFirestore.instance.batch();
+                    final broadcastRef = FirebaseFirestore.instance
                         .collection('broadcasts')
-                        .add({
+                        .doc();
+                    batch.set(broadcastRef, {
                       'message': msgCtrl.text.trim(),
                       'time': FieldValue.serverTimestamp(),
                       'sentBy': 'Admin',
+                      'sentByEmail':
+                          FirebaseAuth.instance.currentUser?.email ?? '',
+                      'audience': 'all_workers',
+                      'workerCount': workers.docs.length,
                     });
+                    for (final worker in workers.docs) {
+                      batch.set(
+                        FirebaseFirestore.instance
+                            .collection('workers')
+                            .doc(worker.id)
+                            .collection('notifications')
+                            .doc(broadcastRef.id),
+                        {
+                          'broadcastId': broadcastRef.id,
+                          'message': msgCtrl.text.trim(),
+                          'type': 'broadcast',
+                          'read': false,
+                          'createdAt': FieldValue.serverTimestamp(),
+                        },
+                      );
+                    }
+                    await batch.commit();
                     Navigator.pop(context);
-                    _snack(context, "📢 Broadcast sent to all workers!");
+                    _snack(context,
+                        "Broadcast sent to ${workers.docs.length} workers");
                   },
                   icon: const Icon(Icons.send_rounded, color: Colors.white),
                   label: const Text("Send Broadcast",
@@ -1174,66 +2372,77 @@ class _KpiCard extends StatelessWidget {
   final IconData icon;
   final String label, value, sub;
   final List<Color> gradient;
+  final VoidCallback? onTap;
   const _KpiCard(
       {required this.icon,
       required this.label,
       required this.value,
       required this.sub,
-      required this.gradient});
+      required this.gradient,
+      this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-            colors: gradient,
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [
-          BoxShadow(
-              color: gradient.last.withOpacity(0.28),
-              blurRadius: 14,
-              offset: const Offset(0, 6)),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
+        child: Ink(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+                colors: gradient,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight),
+            borderRadius: BorderRadius.circular(20),
+            boxShadow: [
+              BoxShadow(
+                  color: gradient.last.withOpacity(0.28),
+                  blurRadius: 14,
+                  offset: const Offset(0, 6)),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Container(
-                width: 34,
-                height: 34,
-                decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.22),
-                    borderRadius: BorderRadius.circular(10)),
-                child: Icon(icon, color: Colors.white, size: 18),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    width: 34,
+                    height: 34,
+                    decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.22),
+                        borderRadius: BorderRadius.circular(10)),
+                    child: Icon(icon, color: Colors.white, size: 18),
+                  ),
+                  const Icon(Icons.trending_up_rounded,
+                      color: Colors.white54, size: 16),
+                ],
               ),
-              const Icon(Icons.trending_up_rounded,
-                  color: Colors.white54, size: 16),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(value,
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.5)),
+                  const SizedBox(height: 2),
+                  Text(label,
+                      style:
+                          const TextStyle(color: Colors.white70, fontSize: 11)),
+                  Text(sub,
+                      style:
+                          const TextStyle(color: Colors.white54, fontSize: 10)),
+                ],
+              ),
             ],
           ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(value,
-                  style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -0.5)),
-              const SizedBox(height: 2),
-              Text(label,
-                  style: const TextStyle(color: Colors.white70, fontSize: 11)),
-              Text(sub,
-                  style: const TextStyle(color: Colors.white54, fontSize: 10)),
-            ],
-          ),
-        ],
+        ),
       ),
     );
   }

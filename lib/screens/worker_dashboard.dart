@@ -214,6 +214,8 @@ class _WorkerDashboardState extends State<WorkerDashboard>
             currentOrderId = activeOrder?.id;
 
             final todayOrders = _todayOrders(orders);
+            final todayCompleted = _todayCompletedOrders(orders);
+            final todayEarnings = _todayEarnings(orders);
             final completedOrders =
                 orders.where((o) => o.status == 'delivered').length;
 
@@ -229,7 +231,18 @@ class _WorkerDashboardState extends State<WorkerDashboard>
                 ),
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
+                    padding: const EdgeInsets.fromLTRB(16, 18, 16, 0),
+                    child: _buildShiftSummary(
+                      todayOrders: todayOrders,
+                      todayCompleted: todayCompleted,
+                      todayEarnings: todayEarnings,
+                      activeOrder: activeOrder,
+                    ),
+                  ),
+                ),
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
                     child: _buildActiveOrderCard(
                       snapshot: snapshot,
                       activeOrder: activeOrder,
@@ -267,13 +280,14 @@ class _WorkerDashboardState extends State<WorkerDashboard>
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
-                    child: _sectionHeader('Alerts', trailing: _alertBadge(2)),
+                    child: _sectionHeader('Alerts',
+                        trailing: _alertBadge(activeOrder == null ? 1 : 2)),
                   ),
                 ),
                 SliverToBoxAdapter(
                   child: Padding(
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
-                    child: _buildAlerts(activeOrder),
+                    child: _buildAlerts(activeOrder, orders),
                   ),
                 ),
               ],
@@ -306,17 +320,35 @@ class _WorkerDashboardState extends State<WorkerDashboard>
     }).length;
   }
 
+  int _todayCompletedOrders(List<OrderModel> orders) {
+    final now = DateTime.now();
+    return orders.where((order) {
+      final date = order.createdAt;
+      return order.status == 'delivered' &&
+          date.year == now.year &&
+          date.month == now.month &&
+          date.day == now.day;
+    }).length;
+  }
+
+  double _todayEarnings(List<OrderModel> orders) {
+    final now = DateTime.now();
+    return orders.where((order) {
+      final date = order.createdAt;
+      return order.status == 'delivered' &&
+          date.year == now.year &&
+          date.month == now.month &&
+          date.day == now.day;
+    }).fold<double>(0, (sum, order) => sum + order.payout);
+  }
+
   Widget _buildHeader({
     required int todayOrders,
     required int completedOrders,
     required OrderModel? activeOrder,
   }) {
     final hour = DateTime.now().hour;
-    final greeting = hour < 12
-        ? 'Good Morning'
-        : hour < 17
-            ? 'Good Afternoon'
-            : 'Good Evening';
+    final greeting = _greetingForHour(hour);
     final target = 10;
     final pct = (completedOrders / target).clamp(0.0, 1.0);
     final remaining = (target - completedOrders).clamp(0, target);
@@ -461,6 +493,97 @@ class _WorkerDashboardState extends State<WorkerDashboard>
     );
   }
 
+  String _greetingForHour(int hour) {
+    if (hour >= 4 && hour < 12) return 'Good Morning 🌅 ';
+    if (hour >= 12 && hour < 18) return 'Good Afternoon ☀️ ';
+    if (hour >= 18) return 'Good Evening 🌆 ';
+    return 'Good Night 🌙';
+  }
+
+  Widget _buildShiftSummary({
+    required int todayOrders,
+    required int todayCompleted,
+    required double todayEarnings,
+    required OrderModel? activeOrder,
+  }) {
+    final completion = todayOrders == 0
+        ? 0
+        : ((todayCompleted / todayOrders) * 100).clamp(0, 100).round();
+    final items = [
+      _ShiftMetric(
+          Icons.task_alt_rounded, '$completion%', 'Completion', _green),
+      _ShiftMetric(Icons.currency_rupee_rounded,
+          todayEarnings.toStringAsFixed(0), 'Today', _amber),
+      _ShiftMetric(
+        activeOrder == null ? Icons.pause_circle_outline : Icons.route_rounded,
+        activeOrder == null ? 'Idle' : 'Live',
+        'Route',
+        activeOrder == null ? _textLight : _blue,
+      ),
+      _ShiftMetric(Icons.coffee_rounded, '${breakMinutes}m', 'Break', _orange),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _card,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08000000),
+            blurRadius: 16,
+            offset: Offset(0, 6),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          for (var i = 0; i < items.length; i++) ...[
+            Expanded(child: _shiftMetricTile(items[i])),
+            if (i != items.length - 1)
+              Container(width: 1, height: 46, color: const Color(0xFFE2E8F0)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _shiftMetricTile(_ShiftMetric metric) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: metric.color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(metric.icon, color: metric.color, size: 18),
+        ),
+        const SizedBox(height: 7),
+        Text(
+          metric.value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(
+            color: _textDark,
+            fontSize: 14,
+            fontWeight: FontWeight.w900,
+          ),
+        ),
+        const SizedBox(height: 1),
+        Text(
+          metric.label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: _textLight, fontSize: 10),
+        ),
+      ],
+    );
+  }
+
   Widget _headerStatus(OrderModel? activeOrder) {
     final text = activeOrder == null ? 'Online' : activeOrder.statusText;
     return Container(
@@ -577,6 +700,7 @@ class _WorkerDashboardState extends State<WorkerDashboard>
       decoration: BoxDecoration(
         color: _card,
         borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: const [
           BoxShadow(
             color: Color(0x08000000),
@@ -616,6 +740,16 @@ class _WorkerDashboardState extends State<WorkerDashboard>
                 ),
               ],
             ),
+          ),
+          const SizedBox(width: 10),
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: const Icon(Icons.radar_rounded, color: _textLight, size: 20),
           ),
         ],
       ),
@@ -780,7 +914,11 @@ class _WorkerDashboardState extends State<WorkerDashboard>
                   'Distance',
                 ),
                 _vDivider(),
-                _miniStat(Icons.receipt_long_outlined, '#${order.id}', 'Order'),
+                _miniStat(
+                  Icons.currency_rupee_rounded,
+                  '₹${order.payout.toStringAsFixed(0)}',
+                  'Earning',
+                ),
               ],
             ),
           ),
@@ -1055,62 +1193,70 @@ class _WorkerDashboardState extends State<WorkerDashboard>
     final width = MediaQuery.sizeOf(context).width;
     final isDesktop = width >= 1024;
     final isTablet = width >= 600 && width < 1024;
+    final stats = [
+      _statCard(
+        icon: Icons.local_shipping_outlined,
+        value: '$todayOrders',
+        label: "Today's Orders",
+        gradient: const [Color(0xFF0F766E), Color(0xFF14B8A6)],
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const DeliveryListScreen()),
+        ),
+      ),
+      _statCard(
+        icon: Icons.check_circle_outline,
+        value: '$completedOrders',
+        label: 'Completed',
+        gradient: const [Color(0xFF1D4ED8), Color(0xFF3B82F6)],
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const OrderHistoryScreen()),
+        ),
+      ),
+      _statCard(
+        icon: Icons.timer_outlined,
+        value: '${breakMinutes}m',
+        label: 'Break Left',
+        gradient: const [Color(0xFFF59E0B), Color(0xFFFBBF24)],
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => const BreakReminderScreen()),
+        ),
+      ),
+      _statCard(
+        icon: activeOrder == null
+            ? Icons.health_and_safety_outlined
+            : Icons.delivery_dining_rounded,
+        value: activeOrder == null ? healthStatus : activeOrder.statusText,
+        label: activeOrder == null ? 'Health Status' : 'Current Status',
+        gradient: const [Color(0xFF10B981), Color(0xFF34D399)],
+        onTap: () => Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => activeOrder == null
+                ? const HealthStatusScreen()
+                : const DeliveryListScreen(),
+          ),
+        ),
+      ),
+    ];
 
-    return GridView.count(
-      crossAxisCount: isDesktop ? 4 : 2,
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      childAspectRatio: isDesktop
-          ? 2.35
-          : isTablet
-              ? 1.65
-              : 1.18,
+    return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      children: [
-        _statCard(
-          icon: Icons.local_shipping_outlined,
-          value: '$todayOrders',
-          label: "Today's Orders",
-          gradient: const [Color(0xFF0F766E), Color(0xFF14B8A6)],
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const DeliveryListScreen()),
-          ),
-        ),
-        _statCard(
-          icon: Icons.check_circle_outline,
-          value: '$completedOrders',
-          label: 'Completed',
-          gradient: const [Color(0xFF1D4ED8), Color(0xFF3B82F6)],
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const OrderHistoryScreen()),
-          ),
-        ),
-        _statCard(
-          icon: Icons.timer_outlined,
-          value: '${breakMinutes}m',
-          label: 'Break Left',
-          gradient: const [Color(0xFFF59E0B), Color(0xFFFBBF24)],
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const BreakReminderScreen()),
-          ),
-        ),
-        _statCard(
-          icon: activeOrder == null
-              ? Icons.health_and_safety_outlined
-              : Icons.delivery_dining_rounded,
-          value: activeOrder == null ? healthStatus : activeOrder.statusText,
-          label: activeOrder == null ? 'Health Status' : 'Current Status',
-          gradient: const [Color(0xFF10B981), Color(0xFF34D399)],
-          onTap: () => Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const HealthStatusScreen()),
-          ),
-        ),
-      ],
+      itemCount: stats.length,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: isDesktop ? 4 : 2,
+        crossAxisSpacing: 12,
+        mainAxisSpacing: 12,
+        mainAxisExtent: isDesktop
+            ? 156
+            : isTablet
+                ? 150
+                : 140,
+      ),
+      itemBuilder: (_, index) => stats[index],
     );
   }
 
@@ -1218,20 +1364,20 @@ class _WorkerDashboardState extends State<WorkerDashboard>
             : isMobile
                 ? 3
                 : 4;
-    final childAspectRatio = width >= 1200
-        ? 1.55
+    final tileHeight = width >= 1200
+        ? 122.0
         : width >= 900
-            ? 1.35
+            ? 128.0
             : isMobile
-                ? 0.95
-                : 1.2;
+                ? 118.0
+                : 126.0;
 
     return GridView.builder(
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: crossAxisCount,
         crossAxisSpacing: 10,
         mainAxisSpacing: 10,
-        childAspectRatio: childAspectRatio,
+        mainAxisExtent: tileHeight,
       ),
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -1252,6 +1398,7 @@ class _WorkerDashboardState extends State<WorkerDashboard>
         decoration: BoxDecoration(
           color: _card,
           borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: const Color(0xFFE2E8F0)),
           boxShadow: const [
             BoxShadow(
               color: Color(0x08000000),
@@ -1267,7 +1414,14 @@ class _WorkerDashboardState extends State<WorkerDashboard>
               width: 46,
               height: 46,
               decoration: BoxDecoration(
-                color: _primary.withOpacity(0.08),
+                gradient: LinearGradient(
+                  colors: [
+                    _primary.withValues(alpha: 0.12),
+                    _blue.withValues(alpha: 0.10),
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(action.icon, color: _primary, size: 22),
@@ -1296,7 +1450,10 @@ class _WorkerDashboardState extends State<WorkerDashboard>
     );
   }
 
-  Widget _buildAlerts(OrderModel? activeOrder) {
+  Widget _buildAlerts(OrderModel? activeOrder, List<OrderModel> orders) {
+    final assignedOrders =
+        orders.where((order) => order.status == 'assigned').toList();
+    final latestAssigned = assignedOrders.isEmpty ? null : assignedOrders.first;
     return Column(
       children: [
         _alertTile(
@@ -1311,16 +1468,33 @@ class _WorkerDashboardState extends State<WorkerDashboard>
         ),
         const SizedBox(height: 10),
         _alertTile(
-          icon: activeOrder == null
-              ? Icons.notifications_none_rounded
-              : Icons.route_rounded,
-          color: activeOrder == null ? _blue : _red,
-          title: activeOrder == null ? 'Ready for new orders' : 'Check route',
-          subtitle: activeOrder == null
-              ? 'Stay online to receive assignments'
-              : 'Open navigation before leaving pickup',
-          onTap:
-              activeOrder == null ? null : () => _openMap(order: activeOrder),
+          icon: latestAssigned != null
+              ? Icons.assignment_turned_in_rounded
+              : activeOrder == null
+                  ? Icons.notifications_none_rounded
+                  : Icons.route_rounded,
+          color: latestAssigned != null
+              ? _primary
+              : activeOrder == null
+                  ? _blue
+                  : _red,
+          title: latestAssigned != null
+              ? 'New order assigned'
+              : activeOrder == null
+                  ? 'Ready for new orders'
+                  : 'Check route',
+          subtitle: latestAssigned != null
+              ? '${latestAssigned.pickup} to ${latestAssigned.drop}'
+              : activeOrder == null
+                  ? assignedOrders.isEmpty
+                      ? 'Stay online to receive assignments'
+                      : '${assignedOrders.length} orders waiting'
+                  : 'Open navigation before leaving pickup',
+          onTap: latestAssigned != null
+              ? () => _openMap(order: latestAssigned)
+              : activeOrder == null
+                  ? null
+                  : () => _openMap(order: activeOrder),
         ),
       ],
     );
@@ -1774,4 +1948,13 @@ class _Action {
     this.screen, {
     this.onTap,
   });
+}
+
+class _ShiftMetric {
+  final IconData icon;
+  final String value;
+  final String label;
+  final Color color;
+
+  const _ShiftMetric(this.icon, this.value, this.label, this.color);
 }

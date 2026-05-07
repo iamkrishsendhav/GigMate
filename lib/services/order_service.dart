@@ -17,7 +17,14 @@ class OrderService {
     required String drop,
     double? distance,
     int? eta,
+    double? deliveryCharge,
+    double? tip,
+    double? bonus,
+    double? deduction,
   }) async {
+    final safeDistance = distance ?? 0;
+    final calculatedCharge =
+        deliveryCharge ?? _calculateDeliveryCharge(safeDistance);
     final docRef = await _orders.add({
       'pickup': pickup,
       'drop': drop,
@@ -25,8 +32,12 @@ class OrderService {
       'assignedWorkerId': null,
       'acceptedBy': null,
       'workerResponse': null,
-      'distance': distance ?? 0,
+      'distance': safeDistance,
       'eta': eta ?? 0,
+      'deliveryCharge': calculatedCharge,
+      'tip': tip ?? 0,
+      'bonus': bonus ?? 0,
+      'deduction': deduction ?? 0,
       'createdAt': FieldValue.serverTimestamp(),
       'updatedAt': FieldValue.serverTimestamp(),
     });
@@ -151,6 +162,11 @@ class OrderService {
     required String status,
   }) async {
     final orderRef = _orders.doc(orderId);
+    final previousSnap = await orderRef.get();
+    final previousData = previousSnap.data() ?? {};
+    final wasDelivered = previousData['status'] == 'delivered';
+    if (status == 'delivered' && wasDelivered) return;
+
     final data = <String, dynamic>{
       'status': status,
       'updatedAt': FieldValue.serverTimestamp(),
@@ -184,12 +200,19 @@ class OrderService {
           'totalOrders': FieldValue.increment(1),
           'updatedAt': FieldValue.serverTimestamp(),
         }, SetOptions(merge: true));
-        await _db.collection('earnings').add({
+        final amount = _earningAmount(orderData);
+        await _db.collection('earnings').doc(orderId).set({
           'workerId': workerId,
           'orderId': orderId,
-          'amount': 50,
-          'createdAt': FieldValue.serverTimestamp(),
-        });
+          'amount': amount,
+          'deliveryCharge': _num(orderData['deliveryCharge']),
+          'tip': _num(orderData['tip']),
+          'bonus': _num(orderData['bonus']),
+          'deduction': _num(orderData['deduction']),
+          'type': 'delivery',
+          'createdAt': orderData['deliveredAt'] ?? FieldValue.serverTimestamp(),
+          'updatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true));
       }
     }
   }
@@ -226,5 +249,25 @@ class OrderService {
 
   Future<void> deleteOrder(String orderId) async {
     await _orders.doc(orderId).delete();
+  }
+
+  double _calculateDeliveryCharge(double distance) {
+    const basePay = 35.0;
+    const perKm = 8.0;
+    final distancePay = distance > 0 ? distance * perKm : 15.0;
+    return double.parse((basePay + distancePay).toStringAsFixed(2));
+  }
+
+  double _earningAmount(Map<String, dynamic> data) {
+    final charge = _num(data['deliveryCharge'] ?? data['charge'] ?? data['amount']);
+    final tip = _num(data['tip']);
+    final bonus = _num(data['bonus']);
+    final deduction = _num(data['deduction']);
+    return double.parse((charge + tip + bonus - deduction).toStringAsFixed(2));
+  }
+
+  double _num(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0.0;
   }
 }

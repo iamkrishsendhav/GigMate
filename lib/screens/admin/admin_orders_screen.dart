@@ -718,8 +718,10 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
+    return Material(
+      color: Colors.transparent,
+      child: Column(
+        children: [
         /// 🔍 SEARCH
         Padding(
           padding: const EdgeInsets.all(12),
@@ -781,7 +783,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
               final orders = docs.map((doc) {
                 return OrderModel.fromMap(
                   doc.id,
-                  doc.data() as Map<String, dynamic>,
+                  doc.data(),
                 );
               }).toList();
 
@@ -815,7 +817,8 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
             },
           ),
         ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -866,6 +869,21 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
 
           const SizedBox(height: 10),
 
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _metaChip(Icons.currency_rupee_rounded,
+                  "Payout ₹${o.payout.toStringAsFixed(0)}"),
+              _metaChip(Icons.near_me_outlined,
+                  o.distance > 0 ? "${o.distance.toStringAsFixed(1)} km" : "--"),
+              _metaChip(Icons.schedule_rounded,
+                  o.eta > 0 ? "${o.eta.toStringAsFixed(0)} min" : "--"),
+            ],
+          ),
+
+          const SizedBox(height: 10),
+
           Text("Worker: ${o.workerId != null ? "Assigned" : "Not Assigned"}"),
 
           const SizedBox(height: 12),
@@ -894,6 +912,26 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   }
 
   /// 🔥 ASSIGN WORKER
+  Widget _metaChip(IconData icon, String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 14, color: Colors.teal),
+          const SizedBox(width: 4),
+          Text(text,
+              style: const TextStyle(
+                  fontSize: 12, fontWeight: FontWeight.w700)),
+        ],
+      ),
+    );
+  }
+
   void _showAssignDialog(OrderModel order) {
     showModalBottomSheet(
       context: context,
@@ -911,7 +949,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
               children: workers.map((doc) {
                 final user = UserModel.fromMap(
                   doc.id,
-                  doc.data() as Map<String, dynamic>,
+                  doc.data(),
                 );
 
                 return ListTile(

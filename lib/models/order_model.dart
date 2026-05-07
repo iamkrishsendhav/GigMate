@@ -6,6 +6,10 @@ class OrderModel {
   final String drop;
   final double distance;
   final double eta;
+  final double deliveryCharge;
+  final double tip;
+  final double bonus;
+  final double deduction;
   final String status;
   final String? assignedWorkerId;
   final String? acceptedBy;
@@ -21,6 +25,10 @@ class OrderModel {
     required this.drop,
     required this.distance,
     required this.eta,
+    this.deliveryCharge = 0,
+    this.tip = 0,
+    this.bonus = 0,
+    this.deduction = 0,
     required this.status,
     this.assignedWorkerId,
     this.acceptedBy,
@@ -39,6 +47,12 @@ class OrderModel {
       distance:
           data['distance'] is num ? (data['distance'] as num).toDouble() : 0.0,
       eta: data['eta'] is num ? (data['eta'] as num).toDouble() : 0.0,
+      deliveryCharge: _numFromAny(
+        data['deliveryCharge'] ?? data['charge'] ?? data['amount'],
+      ),
+      tip: _numFromAny(data['tip']),
+      bonus: _numFromAny(data['bonus']),
+      deduction: _numFromAny(data['deduction']),
       status: (data['status'] ?? 'pending').toString(),
       assignedWorkerId:
           (data['assignedWorkerId'] ?? data['workerId'])?.toString(),
@@ -57,6 +71,10 @@ class OrderModel {
       'drop': drop,
       'distance': distance,
       'eta': eta,
+      'deliveryCharge': deliveryCharge,
+      'tip': tip,
+      'bonus': bonus,
+      'deduction': deduction,
       'status': status,
       'assignedWorkerId': assignedWorkerId,
       'acceptedBy': acceptedBy,
@@ -69,6 +87,7 @@ class OrderModel {
   }
 
   String? get workerId => assignedWorkerId ?? acceptedBy;
+  double get payout => deliveryCharge + tip + bonus - deduction;
 
   bool get isAssignedRequest => status == 'assigned';
   bool get isAccepted => status == 'accepted';
@@ -122,6 +141,10 @@ class OrderModel {
     String? drop,
     double? distance,
     double? eta,
+    double? deliveryCharge,
+    double? tip,
+    double? bonus,
+    double? deduction,
     String? status,
     String? assignedWorkerId,
     String? acceptedBy,
@@ -136,6 +159,10 @@ class OrderModel {
       drop: drop ?? this.drop,
       distance: distance ?? this.distance,
       eta: eta ?? this.eta,
+      deliveryCharge: deliveryCharge ?? this.deliveryCharge,
+      tip: tip ?? this.tip,
+      bonus: bonus ?? this.bonus,
+      deduction: deduction ?? this.deduction,
       status: status ?? this.status,
       assignedWorkerId: assignedWorkerId ?? this.assignedWorkerId,
       acceptedBy: acceptedBy ?? this.acceptedBy,
@@ -151,5 +178,10 @@ class OrderModel {
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;
     return null;
+  }
+
+  static double _numFromAny(dynamic value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '') ?? 0.0;
   }
 }
