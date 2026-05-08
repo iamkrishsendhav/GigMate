@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -9,6 +11,7 @@ import '../core/responsive.dart';
 import '../models/order_model.dart';
 import '../services/order_service.dart';
 import '../services/user_service.dart';
+import '../services/worker_wellness_service.dart';
 import 'break_reminder_screen.dart';
 import 'delivery_list_screen.dart';
 import 'earnings_wallet_screen.dart';
@@ -40,10 +43,12 @@ class _WorkerDashboardState extends State<WorkerDashboard>
 
   final _orderService = OrderService();
   final _userService = UserService();
+  final _wellnessService = WorkerWellnessService();
 
   String _workerName = 'Worker';
-  String healthStatus = 'Good';
-  int breakMinutes = 18;
+  WorkerWellnessSnapshot _wellness = WorkerWellnessSnapshot.empty();
+  StreamSubscription<WorkerWellnessSnapshot>? _wellnessSub;
+  Timer? _clockTimer;
   String? currentOrderId;
 
   final String _emergencyPhone = 'tel:+919876543210';
@@ -59,6 +64,10 @@ class _WorkerDashboardState extends State<WorkerDashboard>
     super.initState();
     _loadWorkerName();
     _markWorkerOnline();
+    _listenWellness();
+    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
 
     _pulseController = AnimationController(
       vsync: this,
@@ -76,8 +85,18 @@ class _WorkerDashboardState extends State<WorkerDashboard>
     if (uid != null) {
       _userService.updateOnlineStatus(uid: uid, isOnline: false);
     }
+    _wellnessSub?.cancel();
+    _clockTimer?.cancel();
     _pulseController.dispose();
     super.dispose();
+  }
+
+  void _listenWellness() {
+    final uid = _uid;
+    if (uid == null) return;
+    _wellnessSub = _wellnessService.stream(uid).listen((snapshot) {
+      if (mounted) setState(() => _wellness = snapshot);
+    });
   }
 
   Future<void> _markWorkerOnline() async {
@@ -520,7 +539,12 @@ class _WorkerDashboardState extends State<WorkerDashboard>
         'Route',
         activeOrder == null ? _textLight : _blue,
       ),
-      _ShiftMetric(Icons.coffee_rounded, '${breakMinutes}m', 'Break', _orange),
+      _ShiftMetric(
+        Icons.coffee_rounded,
+        _compactDuration(_wellness.totalBreakSeconds),
+        'Break',
+        _orange,
+      ),
     ];
 
     return Container(
@@ -1216,8 +1240,8 @@ class _WorkerDashboardState extends State<WorkerDashboard>
       ),
       _statCard(
         icon: Icons.timer_outlined,
-        value: '${breakMinutes}m',
-        label: 'Break Left',
+        value: _compactDuration(_wellness.totalBreakSeconds),
+        label: 'Break Taken',
         gradient: const [Color(0xFFF59E0B), Color(0xFFFBBF24)],
         onTap: () => Navigator.push(
           context,
@@ -1228,7 +1252,9 @@ class _WorkerDashboardState extends State<WorkerDashboard>
         icon: activeOrder == null
             ? Icons.health_and_safety_outlined
             : Icons.delivery_dining_rounded,
-        value: activeOrder == null ? healthStatus : activeOrder.statusText,
+        value: activeOrder == null
+            ? _wellness.healthStatus
+            : activeOrder.statusText,
         label: activeOrder == null ? 'Health Status' : 'Current Status',
         gradient: const [Color(0xFF10B981), Color(0xFF34D399)],
         onTap: () => Navigator.push(
@@ -1333,6 +1359,14 @@ class _WorkerDashboardState extends State<WorkerDashboard>
         ),
       ),
     );
+  }
+
+  String _compactDuration(int seconds) {
+    final minutes = (seconds / 60).floor();
+    if (minutes < 60) return '${minutes}m';
+    final hours = minutes ~/ 60;
+    final rest = minutes % 60;
+    return rest == 0 ? '${hours}h' : '${hours}h ${rest}m';
   }
 
   Widget _buildQuickActionsGrid(bool isMobile) {

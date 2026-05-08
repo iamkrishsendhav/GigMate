@@ -1,6 +1,9 @@
 import 'dart:async';
 
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+
+import '../services/worker_wellness_service.dart';
 
 class BreakReminderScreen extends StatefulWidget {
   const BreakReminderScreen({super.key});
@@ -17,76 +20,60 @@ class _BreakReminderScreenState extends State<BreakReminderScreen> {
   static const _green = Color(0xFF10B981);
   static const _amber = Color(0xFFF59E0B);
 
-  static const int _workGoalSeconds = 30;
+  static const int _workGoalSeconds = 90 * 60;
   static const int _breakGoalSeconds = 300;
 
-  Timer? _timer;
-  int _workSeconds = 0;
-  int _breakSeconds = 0;
-  bool _isWorking = false;
-  bool _isOnBreak = false;
+  final _wellnessService = WorkerWellnessService();
+  Timer? _clockTimer;
+  bool _breakPromptShown = false;
   bool _hydrated = false;
   bool _stretched = false;
   bool _eyesRested = false;
 
-  double get _workProgress =>
-      (_workSeconds / _workGoalSeconds).clamp(0.0, 1.0).toDouble();
+  String? get _uid => FirebaseAuth.instance.currentUser?.uid;
 
-  double get _breakProgress =>
-      (_breakSeconds / _breakGoalSeconds).clamp(0.0, 1.0).toDouble();
-
-  int get _remainingBreakSeconds =>
-      (_breakGoalSeconds - _breakSeconds).clamp(0, _breakGoalSeconds);
-
-  void _startShift() {
-    _timer?.cancel();
-    setState(() {
-      _isWorking = true;
-      _isOnBreak = false;
-    });
-
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      setState(() => _workSeconds++);
-      if (_workSeconds >= _workGoalSeconds) {
-        _timer?.cancel();
-        _showBreakDialog();
-      }
+  @override
+  void initState() {
+    super.initState();
+    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
     });
   }
 
-  void _pauseShift() {
-    _timer?.cancel();
-    setState(() => _isWorking = false);
-  }
-
-  void _startBreak() {
-    _timer?.cancel();
+  Future<void> _startShift(WorkerWellnessSnapshot wellness) async {
+    final uid = _uid;
+    if (uid == null) return;
+    await _wellnessService.startShift(uid, wellness);
     setState(() {
-      _isWorking = false;
-      _isOnBreak = true;
-      _breakSeconds = 0;
+      _breakPromptShown = false;
       _hydrated = false;
       _stretched = false;
       _eyesRested = false;
     });
+  }
 
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (_breakSeconds >= _breakGoalSeconds) {
-        _finishBreak();
-        return;
-      }
-      setState(() => _breakSeconds++);
+  Future<void> _pauseShift(WorkerWellnessSnapshot wellness) async {
+    final uid = _uid;
+    if (uid == null) return;
+    await _wellnessService.pauseShift(uid, wellness);
+  }
+
+  Future<void> _startBreak(WorkerWellnessSnapshot wellness) async {
+    final uid = _uid;
+    if (uid == null) return;
+    _breakPromptShown = false;
+    await _wellnessService.startBreak(uid, wellness);
+    setState(() {
+      _hydrated = false;
+      _stretched = false;
+      _eyesRested = false;
     });
   }
 
-  void _finishBreak() {
-    _timer?.cancel();
-    setState(() {
-      _isOnBreak = false;
-      _isWorking = false;
-      _workSeconds = 0;
-      _breakSeconds = 0;
-    });
+  Future<void> _finishBreak(WorkerWellnessSnapshot wellness) async {
+    final uid = _uid;
+    if (uid == null) return;
+    await _wellnessService.finishBreak(uid, wellness);
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
@@ -97,7 +84,7 @@ class _BreakReminderScreenState extends State<BreakReminderScreen> {
     );
   }
 
-  void _showBreakDialog() {
+  void _showBreakDialog(WorkerWellnessSnapshot wellness) {
     if (!mounted) return;
     showModalBottomSheet(
       context: context,
@@ -158,7 +145,7 @@ class _BreakReminderScreenState extends State<BreakReminderScreen> {
                 child: ElevatedButton.icon(
                   onPressed: () {
                     Navigator.pop(context);
-                    _startBreak();
+                    _startBreak(wellness);
                   },
                   icon: const Icon(Icons.timer_rounded),
                   label: const Text('Start 5 min break'),
@@ -181,21 +168,19 @@ class _BreakReminderScreenState extends State<BreakReminderScreen> {
 
   @override
   void dispose() {
-    _timer?.cancel();
+    _clockTimer?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final progress = _isOnBreak ? _breakProgress : _workProgress;
-    final status = _isOnBreak
-        ? 'Recovery break'
-        : _isWorking
-            ? 'Shift active'
-            : 'Ready to start';
-    final time = _isOnBreak
-        ? _formatTime(_remainingBreakSeconds)
-        : _formatTime(_workSeconds);
+    final uid = _uid;
+    if (uid == null) {
+      return const Scaffold(
+        backgroundColor: _bg,
+        body: Center(child: Text('Please login to continue')),
+      );
+    }
 
     return Scaffold(
       backgroundColor: _bg,
@@ -209,24 +194,62 @@ class _BreakReminderScreenState extends State<BreakReminderScreen> {
         ),
         centerTitle: true,
       ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
-        children: [
-          _heroCard(status: status, time: time, progress: progress),
-          const SizedBox(height: 16),
-          _statsGrid(),
-          const SizedBox(height: 16),
-          _breakPlanCard(),
-          const SizedBox(height: 16),
-          _readinessCard(),
-          const SizedBox(height: 16),
-          _tipCard(),
-        ],
+      body: StreamBuilder<WorkerWellnessSnapshot>(
+        stream: _wellnessService.stream(uid),
+        builder: (context, snapshot) {
+          final wellness = snapshot.data ?? WorkerWellnessSnapshot.empty();
+          final progress = wellness.isOnBreak
+              ? (wellness.currentBreakSeconds / _breakGoalSeconds)
+                  .clamp(0.0, 1.0)
+                  .toDouble()
+              : (wellness.workedSeconds / _workGoalSeconds)
+                  .clamp(0.0, 1.0)
+                  .toDouble();
+          final status = wellness.isOnBreak
+              ? 'Recovery break'
+              : wellness.isShiftRunning
+                  ? 'Shift active'
+                  : 'Ready to start';
+          final time = wellness.isOnBreak
+              ? _formatTime(wellness.currentBreakSeconds)
+              : _formatTime(wellness.workedSeconds);
+
+          if (!_breakPromptShown &&
+              !wellness.isOnBreak &&
+              wellness.isShiftRunning &&
+              wellness.workedSeconds >= _workGoalSeconds) {
+            _breakPromptShown = true;
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted) _showBreakDialog(wellness);
+            });
+          }
+
+          return ListView(
+            padding: const EdgeInsets.fromLTRB(20, 20, 20, 28),
+            children: [
+              _heroCard(
+                wellness: wellness,
+                status: status,
+                time: time,
+                progress: progress,
+              ),
+              const SizedBox(height: 16),
+              _statsGrid(wellness),
+              const SizedBox(height: 16),
+              _breakPlanCard(),
+              const SizedBox(height: 16),
+              _readinessCard(),
+              const SizedBox(height: 16),
+              _tipCard(),
+            ],
+          );
+        },
       ),
     );
   }
 
   Widget _heroCard({
+    required WorkerWellnessSnapshot wellness,
     required String status,
     required String time,
     required double progress,
@@ -253,7 +276,9 @@ class _BreakReminderScreenState extends State<BreakReminderScreen> {
           Row(
             children: [
               _softIcon(
-                _isOnBreak ? Icons.spa_rounded : Icons.delivery_dining_rounded,
+                wellness.isOnBreak
+                    ? Icons.spa_rounded
+                    : Icons.delivery_dining_rounded,
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -270,10 +295,11 @@ class _BreakReminderScreenState extends State<BreakReminderScreen> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      _isOnBreak
-                          ? 'Complete the reset checklist before resuming.'
+                      wellness.isOnBreak
+                          ? 'Break timer keeps running until you finish it.'
                           : 'Track active time and prevent fatigue.',
-                      style: const TextStyle(color: Colors.white70, fontSize: 13),
+                      style:
+                          const TextStyle(color: Colors.white70, fontSize: 13),
                     ),
                   ],
                 ),
@@ -307,7 +333,7 @@ class _BreakReminderScreenState extends State<BreakReminderScreen> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    _isOnBreak ? 'break left' : 'worked today',
+                    wellness.isOnBreak ? 'break taken' : 'worked today',
                     style: const TextStyle(color: Colors.white70),
                   ),
                 ],
@@ -319,22 +345,22 @@ class _BreakReminderScreenState extends State<BreakReminderScreen> {
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: _isOnBreak
-                      ? _finishBreak
-                      : _isWorking
-                          ? _pauseShift
-                          : _startShift,
+                  onPressed: wellness.isOnBreak
+                      ? () => _finishBreak(wellness)
+                      : wellness.isShiftRunning
+                          ? () => _pauseShift(wellness)
+                          : () => _startShift(wellness),
                   icon: Icon(
-                    _isOnBreak
+                    wellness.isOnBreak
                         ? Icons.check_rounded
-                        : _isWorking
+                        : wellness.isShiftRunning
                             ? Icons.pause_rounded
                             : Icons.play_arrow_rounded,
                   ),
                   label: Text(
-                    _isOnBreak
+                    wellness.isOnBreak
                         ? 'Finish break'
-                        : _isWorking
+                        : wellness.isShiftRunning
                             ? 'Pause shift'
                             : 'Start shift',
                   ),
@@ -350,10 +376,10 @@ class _BreakReminderScreenState extends State<BreakReminderScreen> {
                 ),
               ),
               const SizedBox(width: 10),
-              if (!_isOnBreak)
+              if (!wellness.isOnBreak)
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: _startBreak,
+                    onPressed: () => _startBreak(wellness),
                     icon: const Icon(Icons.coffee_rounded),
                     label: const Text('Take break'),
                     style: OutlinedButton.styleFrom(
@@ -373,16 +399,31 @@ class _BreakReminderScreenState extends State<BreakReminderScreen> {
     );
   }
 
-  Widget _statsGrid() {
+  Widget _statsGrid(WorkerWellnessSnapshot wellness) {
+    final breakMinutes = (wellness.totalBreakSeconds / 60).round();
+    final fatigue = wellness.workedSeconds >= _workGoalSeconds ? 'High' : 'Low';
     return Row(
       children: [
         Expanded(
-          child: _statCard(Icons.local_fire_department_rounded, 'Fatigue', 'Low'),
+          child: _statCard(
+              Icons.local_fire_department_rounded, 'Fatigue', fatigue),
         ),
         const SizedBox(width: 12),
-        Expanded(child: _statCard(Icons.water_drop_rounded, 'Hydration', '1.2 L')),
+        Expanded(
+          child: _statCard(
+            Icons.water_drop_rounded,
+            'Hydration',
+            '${(wellness.loggedWaterMl / 1000).toStringAsFixed(1)} L',
+          ),
+        ),
         const SizedBox(width: 12),
-        Expanded(child: _statCard(Icons.speed_rounded, 'Focus', '94%')),
+        Expanded(
+          child: _statCard(
+            Icons.coffee_rounded,
+            'Break',
+            breakMinutes == 0 ? '0m' : '${breakMinutes}m',
+          ),
+        ),
       ],
     );
   }
@@ -392,9 +433,12 @@ class _BreakReminderScreenState extends State<BreakReminderScreen> {
       title: 'Recommended break plan',
       child: Column(
         children: [
-          _planTile(Icons.air_rounded, '1 min breathing', 'Slow breathing reset'),
-          _planTile(Icons.directions_walk_rounded, '2 min walk', 'Relax legs and back'),
-          _planTile(Icons.water_drop_outlined, 'Hydrate', 'Drink water before next order'),
+          _planTile(
+              Icons.air_rounded, '1 min breathing', 'Slow breathing reset'),
+          _planTile(Icons.directions_walk_rounded, '2 min walk',
+              'Relax legs and back'),
+          _planTile(Icons.water_drop_outlined, 'Hydrate',
+              'Drink water before next order'),
         ],
       ),
     );
@@ -404,7 +448,11 @@ class _BreakReminderScreenState extends State<BreakReminderScreen> {
     return _sectionCard(
       title: 'Resume checklist',
       trailing: Text(
-        '${[_hydrated, _stretched, _eyesRested].where((v) => v).length}/3 ready',
+        '${[
+          _hydrated,
+          _stretched,
+          _eyesRested
+        ].where((v) => v).length}/3 ready',
         style: const TextStyle(
           color: _primary,
           fontSize: 12,

@@ -5,6 +5,10 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import '../models/order_model.dart';
+import '../services/order_service.dart';
+import '../services/worker_wellness_service.dart';
+
 class HealthStatusScreen extends StatefulWidget {
   const HealthStatusScreen({super.key});
 
@@ -23,36 +27,30 @@ class _HealthStatusScreenState extends State<HealthStatusScreen> {
   static const _red = Color(0xFFEF4444);
   static const _blue = Color(0xFF3B82F6);
 
-  final _random = Random();
+  final _orderService = OrderService();
+  final _wellnessService = WorkerWellnessService();
   Timer? _timer;
+  DateTime? _lastSyncedAt;
+  WorkerWellnessSnapshot _latestWellness = WorkerWellnessSnapshot.empty();
 
   double heartRate = 74;
-  int steps = 4700;
-  double hydration = 1.24;
+  int steps = 0;
+  double hydration = 0;
+  double hydrationGoal = 2.5;
   double fatigue = 0.34;
   double stress = 0.28;
   double sleepHours = 6.8;
-  double activeHours = 1.75;
+  double activeHours = 0;
+  int calories = 0;
 
   String? get _uid => FirebaseAuth.instance.currentUser?.uid;
 
   @override
   void initState() {
     super.initState();
-    _timer = Timer.periodic(const Duration(seconds: 3), (_) {
+    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
       if (!mounted) return;
-      setState(() {
-        heartRate =
-            (heartRate + _random.nextInt(5) - 2).clamp(62, 104).toDouble();
-        steps += 35 + _random.nextInt(45);
-        hydration = (hydration + 0.015).clamp(0.8, 3.2).toDouble();
-        fatigue = (fatigue + 0.015).clamp(0.12, 0.92).toDouble();
-        stress = (stress + (_random.nextBool() ? 0.01 : -0.01))
-            .clamp(0.12, 0.88)
-            .toDouble();
-        activeHours = (activeHours + 0.02).clamp(0.2, 8.5).toDouble();
-      });
-      _syncHealthSnapshot();
+      setState(() {});
     });
   }
 
@@ -65,9 +63,10 @@ class _HealthStatusScreenState extends State<HealthStatusScreen> {
   int get score {
     final fatigueScore = (1 - fatigue) * 35;
     final stressScore = (1 - stress) * 25;
-    final hydrationScore = (hydration / 2.5).clamp(0, 1) * 20;
+    final hydrationScore = (hydration / hydrationGoal).clamp(0, 1) * 20;
     final movementScore = (steps / 8000).clamp(0, 1) * 20;
-    return (fatigueScore + stressScore + hydrationScore + movementScore).round();
+    return (fatigueScore + stressScore + hydrationScore + movementScore)
+        .round();
   }
 
   String get status {
@@ -87,23 +86,37 @@ class _HealthStatusScreenState extends State<HealthStatusScreen> {
   Future<void> _syncHealthSnapshot() async {
     final uid = _uid;
     if (uid == null) return;
-    await FirebaseFirestore.instance.collection('workers').doc(uid).set({
-      'health': status,
-      'healthScore': score,
-      'heartRate': heartRate.round(),
-      'steps': steps,
-      'hydration': hydration,
-      'fatigue': fatigue,
-      'stress': stress,
-      'activeHours': activeHours,
-      'healthUpdatedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    final lastSynced = _lastSyncedAt;
+    if (lastSynced != null &&
+        DateTime.now().difference(lastSynced) < const Duration(seconds: 20)) {
+      return;
+    }
+    _lastSyncedAt = DateTime.now();
+    await _wellnessService.saveHealthSnapshot(
+      uid: uid,
+      status: status,
+      score: score,
+      steps: steps,
+      hydrationLitres: hydration,
+      fatigue: fatigue,
+      stress: stress,
+      activeHours: activeHours,
+      calories: calories,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
     final isWide = width >= 900;
+
+    final uid = _uid;
+    if (uid == null) {
+      return const Scaffold(
+        backgroundColor: _bg,
+        body: Center(child: Text('Please login to continue')),
+      );
+    }
 
     return Scaffold(
       backgroundColor: _bg,
@@ -116,52 +129,121 @@ class _HealthStatusScreenState extends State<HealthStatusScreen> {
         actions: [
           IconButton(
             tooltip: 'Log water',
-            onPressed: () => setState(() =>
-                hydration = (hydration + 0.25).clamp(0.8, 3.5).toDouble()),
+            onPressed: () => _wellnessService.logWater(uid, 250),
             icon: const Icon(Icons.water_drop_outlined),
           ),
           IconButton(
             tooltip: 'Start break',
-            onPressed: _startBreak,
+            onPressed: () => _startBreak(),
             icon: const Icon(Icons.self_improvement_rounded),
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(isWide ? 24 : 16),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1180),
-            child: Column(
-              children: [
-                _heroCard(),
-                const SizedBox(height: 16),
-                _metricsGrid(isWide),
-                const SizedBox(height: 16),
-                isWide
-                    ? Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(child: _readinessCard()),
-                          const SizedBox(width: 16),
-                          Expanded(child: _recommendationsCard()),
-                        ],
-                      )
-                    : Column(
-                        children: [
-                          _readinessCard(),
-                          const SizedBox(height: 16),
-                          _recommendationsCard(),
-                        ],
-                      ),
-                const SizedBox(height: 16),
-                _alertsCard(),
-              ],
-            ),
-          ),
-        ),
+      body: StreamBuilder<WorkerWellnessSnapshot>(
+        stream: _wellnessService.stream(uid),
+        builder: (context, wellnessSnapshot) {
+          final wellness =
+              wellnessSnapshot.data ?? WorkerWellnessSnapshot.empty();
+          return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+            stream: _orderService.getWorkerOrders(uid),
+            builder: (context, orderSnapshot) {
+              final orders = _ordersFromSnapshot(orderSnapshot);
+              _applyLiveMetrics(wellness, orders);
+              _syncHealthSnapshot();
+
+              return SingleChildScrollView(
+                padding: EdgeInsets.all(isWide ? 24 : 16),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 1180),
+                    child: Column(
+                      children: [
+                        _heroCard(),
+                        const SizedBox(height: 16),
+                        _metricsGrid(isWide),
+                        const SizedBox(height: 16),
+                        isWide
+                            ? Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Expanded(child: _readinessCard()),
+                                  const SizedBox(width: 16),
+                                  Expanded(child: _recommendationsCard()),
+                                ],
+                              )
+                            : Column(
+                                children: [
+                                  _readinessCard(),
+                                  const SizedBox(height: 16),
+                                  _recommendationsCard(),
+                                ],
+                              ),
+                        const SizedBox(height: 16),
+                        _alertsCard(),
+                      ],
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        },
       ),
     );
+  }
+
+  List<OrderModel> _ordersFromSnapshot(
+    AsyncSnapshot<QuerySnapshot<Map<String, dynamic>>> snapshot,
+  ) {
+    if (!snapshot.hasData) return [];
+    return snapshot.data!.docs
+        .map((doc) => OrderModel.fromMap(doc.id, doc.data()))
+        .toList();
+  }
+
+  void _applyLiveMetrics(
+    WorkerWellnessSnapshot wellness,
+    List<OrderModel> orders,
+  ) {
+    _latestWellness = wellness;
+    final today = DateTime.now();
+    final todayOrders = orders.where((order) {
+      final date = order.createdAt;
+      return date.year == today.year &&
+          date.month == today.month &&
+          date.day == today.day;
+    }).toList();
+    final completed = todayOrders.where((order) => order.isCompleted).length;
+    final routeKm = todayOrders.fold<double>(
+      0,
+      (sum, order) => sum + max(order.distance, 0),
+    );
+    activeHours = (wellness.workedSeconds / 3600).clamp(0, 12).toDouble();
+    final routeSteps = (routeKm * 280).round();
+    final activeSteps = (activeHours * 720).round();
+    final orderSteps = completed * 320;
+    steps = max(wellness.manualSteps, routeSteps + activeSteps + orderSteps);
+    hydration = (wellness.loggedWaterMl / 1000).clamp(0, 6).toDouble();
+    hydrationGoal =
+        (2.2 + (steps / 10000 * 0.45) + (activeHours * 0.10))
+            .clamp(2.2, 3.4)
+            .toDouble();
+    calories = (steps * 0.045 + routeKm * 18).round();
+    sleepHours = wellness.sleepHours;
+    final movementLoad = (steps / 9000).clamp(0, 1).toDouble();
+    final breakRecovery = (wellness.totalBreakSeconds / 1800).clamp(0, 1);
+    fatigue =
+        (0.18 + activeHours * 0.09 + movementLoad * 0.22 - breakRecovery * 0.18)
+            .clamp(0.12, 0.92)
+            .toDouble();
+    stress = (0.22 +
+            (orders.where((o) => o.isActiveDelivery).length * 0.08) -
+            breakRecovery * 0.10)
+        .clamp(0.12, 0.86)
+        .toDouble();
+    heartRate = (62 + activeHours * 4 + movementLoad * 20 + stress * 12)
+        .clamp(62, 108)
+        .toDouble();
   }
 
   Widget _heroCard() {
@@ -234,9 +316,14 @@ class _HealthStatusScreenState extends State<HealthStatusScreen> {
           Icons.favorite_rounded, _red),
       _Metric('Steps', '$steps', 'Goal 8,000', Icons.directions_walk_rounded,
           _primary),
-      _Metric('Hydration', '${hydration.toStringAsFixed(2)} L', 'Goal 2.5 L',
-          Icons.water_drop_rounded, _blue),
-      _Metric('Calories', '${(steps * 0.045).round()} kcal', 'Estimated burn',
+      _Metric(
+        'Hydration',
+        '${hydration.toStringAsFixed(2)} L',
+        'Goal ${hydrationGoal.toStringAsFixed(1)} L',
+        Icons.water_drop_rounded,
+        _blue,
+      ),
+      _Metric('Calories', '$calories kcal', 'Estimated burn',
           Icons.local_fire_department_rounded, _amber),
       _Metric('Active Time', '${activeHours.toStringAsFixed(1)} h',
           'Today online', Icons.timer_rounded, _primary),
@@ -266,7 +353,8 @@ class _HealthStatusScreenState extends State<HealthStatusScreen> {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: const [
-          BoxShadow(color: Color(0x07000000), blurRadius: 14, offset: Offset(0, 6)),
+          BoxShadow(
+              color: Color(0x07000000), blurRadius: 14, offset: Offset(0, 6)),
         ],
       ),
       child: Column(
@@ -318,8 +406,8 @@ class _HealthStatusScreenState extends State<HealthStatusScreen> {
           const SizedBox(height: 14),
           _progressRow('Stress', stress, stress > 0.65 ? _red : _amber),
           const SizedBox(height: 14),
-          _progressRow(
-              'Hydration goal', (hydration / 2.5).clamp(0, 1).toDouble(), _blue),
+          _progressRow('Hydration goal',
+              (hydration / hydrationGoal).clamp(0, 1).toDouble(), _blue),
         ],
       ),
     );
@@ -327,12 +415,18 @@ class _HealthStatusScreenState extends State<HealthStatusScreen> {
 
   Widget _recommendationsCard() {
     final tips = [
-      _Tip(Icons.water_drop_rounded, 'Hydration', hydration < 1.8
-          ? 'Drink 250 ml water before the next delivery.'
-          : 'Hydration is on track. Keep sipping.'),
-      _Tip(Icons.self_improvement_rounded, 'Break plan', fatigue > 0.65
-          ? 'Take a 10 minute recovery break now.'
-          : 'Plan a short break after the next route.'),
+      _Tip(
+          Icons.water_drop_rounded,
+          'Hydration',
+          hydration < 1.8
+              ? 'Drink 250 ml water before the next delivery.'
+              : 'Hydration is on track. Keep sipping.'),
+      _Tip(
+          Icons.self_improvement_rounded,
+          'Break plan',
+          fatigue > 0.65
+              ? 'Take a 10 minute recovery break now.'
+              : 'Plan a short break after the next route.'),
       _Tip(Icons.route_rounded, 'Route safety',
           'Avoid continuous riding beyond 2 hours without pause.'),
     ];
@@ -481,7 +575,10 @@ class _HealthStatusScreenState extends State<HealthStatusScreen> {
     );
   }
 
-  void _startBreak() {
+  Future<void> _startBreak() async {
+    final uid = _uid;
+    if (uid == null) return;
+    await _wellnessService.startBreak(uid, _latestWellness);
     setState(() {
       fatigue = max(0.12, fatigue - 0.18);
       stress = max(0.12, stress - 0.12);
