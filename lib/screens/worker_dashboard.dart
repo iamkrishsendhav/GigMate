@@ -27,8 +27,7 @@ class WorkerDashboard extends StatefulWidget {
   State<WorkerDashboard> createState() => _WorkerDashboardState();
 }
 
-class _WorkerDashboardState extends State<WorkerDashboard>
-    with TickerProviderStateMixin {
+class _WorkerDashboardState extends State<WorkerDashboard> {
   static const Color _primary = Color(0xFF0F766E);
   static const Color _bg = Color(0xFFF0F4F8);
   static const Color _card = Colors.white;
@@ -48,14 +47,13 @@ class _WorkerDashboardState extends State<WorkerDashboard>
   String _workerName = 'Worker';
   WorkerWellnessSnapshot _wellness = WorkerWellnessSnapshot.empty();
   StreamSubscription<WorkerWellnessSnapshot>? _wellnessSub;
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _workerOrdersStream;
+  String? _workerOrdersStreamUid;
   Timer? _clockTimer;
   String? currentOrderId;
 
   final String _emergencyPhone = 'tel:+919876543210';
   final String _emergencySms = 'sms:+919876543210';
-
-  late final AnimationController _pulseController;
-  late final Animation<double> _pulseAnim;
 
   String? get _uid => FirebaseAuth.instance.currentUser?.uid;
 
@@ -65,18 +63,10 @@ class _WorkerDashboardState extends State<WorkerDashboard>
     _loadWorkerName();
     _markWorkerOnline();
     _listenWellness();
-    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+    _workerOrdersStream = _ordersStreamForUid(_uid);
+    _clockTimer = Timer.periodic(const Duration(minutes: 1), (_) {
       if (mounted) setState(() {});
     });
-
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1000),
-    );
-    _pulseAnim = Tween<double>(begin: 1.0, end: 1.05).animate(
-      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
-    );
-    _pulseController.repeat(reverse: true);
   }
 
   @override
@@ -87,7 +77,6 @@ class _WorkerDashboardState extends State<WorkerDashboard>
     }
     _wellnessSub?.cancel();
     _clockTimer?.cancel();
-    _pulseController.dispose();
     super.dispose();
   }
 
@@ -97,6 +86,17 @@ class _WorkerDashboardState extends State<WorkerDashboard>
     _wellnessSub = _wellnessService.stream(uid).listen((snapshot) {
       if (mounted) setState(() => _wellness = snapshot);
     });
+  }
+
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _ordersStreamForUid(
+    String? uid,
+  ) {
+    if (uid == null) return null;
+    if (_workerOrdersStreamUid != uid) {
+      _workerOrdersStreamUid = uid;
+      _workerOrdersStream = _orderService.getWorkerOrders(uid);
+    }
+    return _workerOrdersStream;
   }
 
   Future<void> _markWorkerOnline() async {
@@ -216,11 +216,13 @@ class _WorkerDashboardState extends State<WorkerDashboard>
       );
     }
 
+    final workerOrdersStream = _ordersStreamForUid(uid);
+
     return Scaffold(
       backgroundColor: _bg,
       body: SafeArea(
         child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-          stream: _orderService.getWorkerOrders(uid),
+          stream: workerOrdersStream,
           builder: (context, snapshot) {
             final orders = _ordersFromSnapshot(snapshot);
             final openOrders = orders.where((o) {
@@ -1604,28 +1606,28 @@ class _WorkerDashboardState extends State<WorkerDashboard>
         color: Color(0xFFF0F4F8),
         border: Border(top: BorderSide(color: Color(0xFFE2E8F0))),
       ),
-      child: ScaleTransition(
-        scale: _pulseAnim,
-        child: SizedBox(
-          height: 52,
-          child: ElevatedButton.icon(
-            onPressed: () => _showSOSDialog(context),
-            icon: const Icon(Icons.emergency_rounded,
-                color: Colors.white, size: 20),
-            label: const Text(
-              'SOS Emergency',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: 15,
-                fontWeight: FontWeight.w800,
-              ),
+      child: SizedBox(
+        height: 52,
+        child: ElevatedButton.icon(
+          onPressed: () => _showSOSDialog(context),
+          icon: const Icon(
+            Icons.emergency_rounded,
+            color: Colors.white,
+            size: 20,
+          ),
+          label: const Text(
+            'SOS Emergency',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 15,
+              fontWeight: FontWeight.w800,
             ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _red,
-              elevation: 0,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
+          ),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: _red,
+            elevation: 0,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
             ),
           ),
         ),

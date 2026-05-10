@@ -21,11 +21,9 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-
       title: "GigMate",
-
       theme: AppTheme.lightTheme,
-
+      themeMode: ThemeMode.light,
       builder: (context, child) {
         final mediaQuery = MediaQuery.of(context);
         return MediaQuery(
@@ -33,7 +31,6 @@ class MyApp extends StatelessWidget {
           child: child!,
         );
       },
-
       home: const RoleSelectionScreen(),
     );
   }
