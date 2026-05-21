@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -10,6 +12,7 @@ import 'admin_live_tracking_screen.dart';
 import 'admin_analytics_screen.dart';
 import 'package:gigmate/services/order_service.dart';
 import 'package:gigmate/services/user_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // ═══════════════════════════════════════════════════════════════════
 //  AdminDashboard — GigMate Pro
@@ -295,7 +298,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget _topBar(bool isMobile) {
     return Container(
       padding:
-          EdgeInsets.symmetric(horizontal: isMobile ? 12 : 24, vertical: 14),
+          EdgeInsets.symmetric(horizontal: isMobile ? 8 : 24, vertical: 14),
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(bottom: BorderSide(color: Color(0xFFE2E8F0))),
@@ -313,8 +316,10 @@ class _AdminDashboardState extends State<AdminDashboard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(_navItems[_tab].label,
-                    style: const TextStyle(
-                        fontSize: 20,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                        fontSize: isMobile ? 18 : 20,
                         fontWeight: FontWeight.w800,
                         color: _textDark,
                         letterSpacing: -0.3)),
@@ -323,16 +328,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
               ],
             ),
           ),
-          _chip("● Live", _green, null),
-          const SizedBox(width: 8),
-          _chip("🔔 $_alertCount", _alertCount > 0 ? _red : _textLight,
-              _showDetailedAlerts),
-          const SizedBox(width: 10),
+          _chip(isMobile ? "●" : "● Live", _green, null),
+          SizedBox(width: isMobile ? 6 : 8),
+          _chip(isMobile ? "🔔 $_alertCount" : "🔔 $_alertCount",
+              _alertCount > 0 ? _red : _textLight, _showDetailedAlerts),
+          SizedBox(width: isMobile ? 6 : 10),
           GestureDetector(
             onTap: _adminMenu,
             child: Container(
-              width: 38,
-              height: 38,
+              width: isMobile ? 36 : 38,
+              height: isMobile ? 36 : 38,
               decoration: BoxDecoration(
                 color: _primary.withOpacity(0.08),
                 shape: BoxShape.circle,
@@ -351,13 +356,16 @@ class _AdminDashboardState extends State<AdminDashboard> {
   Widget _chip(String t, Color c, VoidCallback? fn) => GestureDetector(
         onTap: fn,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+          constraints: const BoxConstraints(minHeight: 32),
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
           decoration: BoxDecoration(
             color: c.withOpacity(0.08),
             borderRadius: BorderRadius.circular(999),
             border: Border.all(color: c.withOpacity(0.2)),
           ),
           child: Text(t,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               style: TextStyle(
                   color: c, fontSize: 12, fontWeight: FontWeight.w700)),
         ),
@@ -471,115 +479,138 @@ class _AdminDashboardState extends State<AdminDashboard> {
             .snapshots(),
         builder: (_, snap) {
           final docs = snap.data?.docs ?? [];
-          return AlertDialog(
-            backgroundColor: Colors.white,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-            titlePadding: const EdgeInsets.fromLTRB(22, 20, 16, 0),
-            contentPadding: const EdgeInsets.fromLTRB(22, 16, 22, 8),
-            title: Row(
-              children: [
-                Container(
-                  width: 42,
-                  height: 42,
-                  decoration: BoxDecoration(
-                    color: _red.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: const Icon(Icons.warning_amber_rounded,
-                      color: _red, size: 23),
-                ),
-                const SizedBox(width: 12),
-                const Expanded(
+          return Dialog(
+            insetPadding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 24),
+            backgroundColor: Colors.transparent,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 620, maxHeight: 620),
+              child: Material(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(24),
+                clipBehavior: Clip.antiAlias,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 18, 18, 14),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text("Worker Alerts",
-                          style: TextStyle(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w900,
-                              color: _textDark)),
-                      SizedBox(height: 2),
-                      Text("Worker, SOS and live location details",
-                          style: TextStyle(
-                              fontSize: 12,
-                              color: _textLight,
-                              fontWeight: FontWeight.w600)),
+                      Row(
+                        children: [
+                          Container(
+                            width: 42,
+                            height: 42,
+                            decoration: BoxDecoration(
+                              color: _red.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            child: const Icon(Icons.warning_amber_rounded,
+                                color: _red, size: 23),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text("Worker Alerts",
+                                    style: TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w900,
+                                        color: _textDark)),
+                                SizedBox(height: 2),
+                                Text("Worker, SOS and live location details",
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: _textLight,
+                                        fontWeight: FontWeight.w600)),
+                              ],
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: "Close",
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.close_rounded),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      Flexible(
+                        child: docs.isEmpty
+                            ? Container(
+                                padding: const EdgeInsets.all(22),
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFF8FAFC),
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(
+                                      color: const Color(0xFFE2E8F0)),
+                                ),
+                                child: const Center(
+                                  child: Text("No active alerts",
+                                      style: TextStyle(
+                                          color: _textLight,
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700)),
+                                ),
+                              )
+                            : ListView.separated(
+                                padding: EdgeInsets.zero,
+                                itemCount: docs.length,
+                                separatorBuilder: (_, __) =>
+                                    const SizedBox(height: 10),
+                                itemBuilder: (_, i) {
+                                  final doc = docs[i];
+                                  final data = doc.data() as Map;
+                                  final workerId = (data['workerId'] ?? '')
+                                      .toString()
+                                      .trim();
+                                  if (workerId.isEmpty) {
+                                    return _alertCard(
+                                      alertRef: doc.reference,
+                                      alert: data,
+                                      workerId: null,
+                                      worker: null,
+                                    );
+                                  }
+                                  return StreamBuilder<
+                                      DocumentSnapshot<Map<String, dynamic>>>(
+                                    stream: FirebaseFirestore.instance
+                                        .collection('workers')
+                                        .doc(workerId)
+                                        .snapshots(),
+                                    builder: (_, workerSnap) => _alertCard(
+                                      alertRef: doc.reference,
+                                      alert: data,
+                                      workerId: workerId,
+                                      worker: workerSnap.data?.data(),
+                                    ),
+                                  );
+                                },
+                              ),
+                      ),
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: docs.isEmpty
+                              ? null
+                              : () async {
+                                  final batch =
+                                      FirebaseFirestore.instance.batch();
+                                  for (final d in docs) {
+                                    batch.update(d.reference, {'read': true});
+                                  }
+                                  await batch.commit();
+                                  if (!mounted || !context.mounted) return;
+                                  Navigator.pop(context);
+                                  _snack(context, "All alerts marked read");
+                                },
+                          child: const Text("Mark all read"),
+                        ),
+                      ),
                     ],
                   ),
                 ),
-                IconButton(
-                  tooltip: "Close",
-                  onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close_rounded),
-                ),
-              ],
-            ),
-            content: SizedBox(
-              width: 620,
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxHeight: 520),
-                child: docs.isEmpty
-                    ? Container(
-                        padding: const EdgeInsets.all(22),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF8FAFC),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                        ),
-                        child: const Center(
-                          child: Text("No active alerts",
-                              style: TextStyle(
-                                  color: _textLight,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w700)),
-                        ),
-                      )
-                    : ListView.separated(
-                        shrinkWrap: true,
-                        itemCount: docs.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 10),
-                        itemBuilder: (_, i) {
-                          final doc = docs[i];
-                          final data = doc.data() as Map;
-                          final workerId =
-                              (data['workerId'] ?? '').toString().trim();
-                          if (workerId.isEmpty) {
-                            return _alertCard(
-                              alertRef: doc.reference,
-                              alert: data,
-                              workerId: null,
-                              worker: null,
-                            );
-                          }
-                          return StreamBuilder<
-                              DocumentSnapshot<Map<String, dynamic>>>(
-                            stream: FirebaseFirestore.instance
-                                .collection('workers')
-                                .doc(workerId)
-                                .snapshots(),
-                            builder: (_, workerSnap) => _alertCard(
-                              alertRef: doc.reference,
-                              alert: data,
-                              workerId: workerId,
-                              worker: workerSnap.data?.data(),
-                            ),
-                          );
-                        },
-                      ),
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  for (final d in docs) {
-                    d.reference.update({'read': true});
-                  }
-                  Navigator.pop(context);
-                },
-                child: const Text("Mark all read"),
-              ),
-            ],
           );
         },
       ),
@@ -604,9 +635,12 @@ class _AdminDashboardState extends State<AdminDashboard> {
     final phone =
         (worker?['phone'] ?? worker?['mobile'] ?? 'Not available').toString();
     final email = (worker?['email'] ?? 'Not available').toString();
-    final vehicle =
-        (worker?['vehicleNo'] ?? worker?['vehicleNumber'] ?? 'Not available')
-            .toString();
+    final vehicle = (worker?['vehicleNo'] ??
+            worker?['vehicleNumber'] ??
+            worker?['vehicleType'] ??
+            worker?['vehicle'] ??
+            'Not available')
+        .toString();
     final online = worker?['isOnline'] == true;
     final orderId =
         (alert['orderId'] ?? worker?['currentOrderId'] ?? '').toString();
@@ -617,132 +651,117 @@ class _AdminDashboardState extends State<AdminDashboard> {
         : 'Location not available';
     final accent = resolved ? _green : (isSOS ? _red : const Color(0xFFF59E0B));
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: resolved ? const Color(0xFFF8FAFC) : Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: accent.withValues(alpha: 0.22)),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x07000000),
-            blurRadius: 12,
-            offset: Offset(0, 5),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 420;
+        return Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            color: resolved ? const Color(0xFFF8FAFC) : Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: accent.withValues(alpha: 0.22)),
+            boxShadow: const [
+              BoxShadow(
+                color: Color(0x07000000),
+                blurRadius: 12,
+                offset: Offset(0, 5),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(
-                  isSOS ? Icons.emergency_rounded : Icons.warning_amber_rounded,
-                  color: accent,
-                  size: 23,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: accent.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Icon(
+                      isSOS
+                          ? Icons.emergency_rounded
+                          : Icons.warning_amber_rounded,
+                      color: accent,
+                      size: 23,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(
-                          child: Text(
-                            '${isSOS ? 'SOS Alert' : type} - $name',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: _textDark,
-                              fontSize: 14,
-                              fontWeight: FontWeight.w900,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                '${isSOS ? 'SOS Alert' : type} - $name',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  color: _textDark,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
                             ),
-                          ),
+                            _miniStatus(
+                              resolved ? 'Resolved' : (read ? 'Read' : 'New'),
+                              resolved ? _green : (read ? _textLight : _red),
+                            ),
+                          ],
                         ),
-                        _miniStatus(
-                          resolved ? 'Resolved' : (read ? 'Read' : 'New'),
-                          resolved ? _green : (read ? _textLight : _red),
+                        const SizedBox(height: 4),
+                        Text(
+                          _timeText(alert['time']),
+                          style: const TextStyle(
+                              color: _textLight,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _timeText(alert['time']),
-                      style: const TextStyle(
-                          color: _textLight,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              _alertInfoChip(
-                  Icons.circle,
-                  online ? 'Online now' : 'Offline/unknown',
-                  online ? _green : _textLight),
-              _alertInfoChip(Icons.location_on_rounded, locationText, _primary),
-              if (orderId.isNotEmpty)
-                _alertInfoChip(Icons.receipt_long_rounded, '#$orderId',
-                    const Color(0xFF1D4ED8)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          _alertDetailRow(Icons.badge_outlined, 'Worker ID',
-              workerId?.isNotEmpty == true ? workerId! : 'Not attached'),
-          _alertDetailRow(Icons.phone_outlined, 'Phone', phone),
-          _alertDetailRow(Icons.mail_outline_rounded, 'Email', email),
-          _alertDetailRow(Icons.two_wheeler_rounded, 'Vehicle', vehicle),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: lat == null || lng == null
-                      ? null
-                      : () {
-                          Navigator.pop(context);
-                          setState(() => _tab = 4);
-                        },
-                  icon: const Icon(Icons.my_location_rounded, size: 17),
-                  label: const Text('Live Tracking'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: _primary,
-                    side: BorderSide(color: _primary.withValues(alpha: 0.3)),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
                   ),
-                ),
+                ],
               ),
-              const SizedBox(width: 8),
-              TextButton(
-                onPressed: () => alertRef.update({'read': true}),
-                child: const Text('Mark read'),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _alertInfoChip(
+                      Icons.circle,
+                      online ? 'Online now' : 'Offline/unknown',
+                      online ? _green : _textLight),
+                  _alertInfoChip(
+                      Icons.location_on_rounded, locationText, _primary),
+                  if (orderId.isNotEmpty)
+                    _alertInfoChip(Icons.receipt_long_rounded, '#$orderId',
+                        const Color(0xFF1D4ED8)),
+                ],
               ),
-              TextButton(
-                onPressed: () => _resolveAlert(alertRef, workerId),
-                child: const Text('Resolve'),
+              const SizedBox(height: 12),
+              _alertDetailRow(Icons.badge_outlined, 'Worker ID',
+                  workerId?.isNotEmpty == true ? workerId! : 'Not attached'),
+              _alertDetailRow(Icons.phone_outlined, 'Phone', phone),
+              _alertDetailRow(Icons.mail_outline_rounded, 'Email', email),
+              _alertDetailRow(Icons.two_wheeler_rounded, 'Vehicle', vehicle),
+              const SizedBox(height: 10),
+              _alertActions(
+                compact: compact,
+                alertRef: alertRef,
+                workerId: workerId,
+                lat: lat,
+                lng: lng,
+                resolved: resolved,
               ),
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -756,6 +775,69 @@ class _AdminDashboardState extends State<AdminDashboard> {
       child: Text(text,
           style: TextStyle(
               color: color, fontSize: 10, fontWeight: FontWeight.w900)),
+    );
+  }
+
+  Widget _alertActions({
+    required bool compact,
+    required DocumentReference alertRef,
+    required String? workerId,
+    required double? lat,
+    required double? lng,
+    required bool resolved,
+  }) {
+    final trackingButton = OutlinedButton.icon(
+      onPressed: () {
+        Navigator.pop(context);
+        setState(() => _tab = 4);
+      },
+      icon: const Icon(Icons.my_location_rounded, size: 17),
+      label: const Text('Live Tracking'),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: _primary,
+        side: BorderSide(color: _primary.withValues(alpha: 0.3)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      ),
+    );
+    final mapsButton = TextButton.icon(
+      onPressed:
+          lat == null || lng == null ? null : () => _openAlertMap(lat, lng),
+      icon: const Icon(Icons.map_outlined, size: 16),
+      label: const Text('Maps'),
+    );
+    final markReadButton = TextButton(
+      onPressed: () => _markAlertRead(alertRef),
+      child: const Text('Mark read'),
+    );
+    final resolveButton = TextButton(
+      onPressed: resolved ? null : () => _resolveAlert(alertRef, workerId),
+      child: const Text('Resolve'),
+    );
+
+    if (compact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          trackingButton,
+          const SizedBox(height: 6),
+          Wrap(
+            alignment: WrapAlignment.end,
+            spacing: 4,
+            runSpacing: 2,
+            children: [mapsButton, markReadButton, resolveButton],
+          ),
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(child: trackingButton),
+        const SizedBox(width: 8),
+        mapsButton,
+        markReadButton,
+        resolveButton,
+      ],
     );
   }
 
@@ -809,7 +891,8 @@ class _AdminDashboardState extends State<AdminDashboard> {
     );
   }
 
-  Future<void> _resolveAlert(DocumentReference alertRef, String? workerId) async {
+  Future<void> _resolveAlert(
+      DocumentReference alertRef, String? workerId) async {
     await alertRef.update({'read': true, 'resolved': true});
     if (workerId != null && workerId.isNotEmpty) {
       await FirebaseFirestore.instance
@@ -817,6 +900,26 @@ class _AdminDashboardState extends State<AdminDashboard> {
           .doc(workerId)
           .set({'hasSOS': false}, SetOptions(merge: true));
     }
+    if (mounted) _snack(context, "Alert resolved");
+  }
+
+  Future<void> _markAlertRead(DocumentReference alertRef) async {
+    await alertRef.update({'read': true});
+    if (mounted) _snack(context, "Alert marked read");
+  }
+
+  Future<void> _openAlertMap(double lat, double lng) async {
+    final uri =
+        Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      return;
+    }
+    if (mounted) _snack(context, "Could not open maps");
+  }
+
+  void _snack(BuildContext ctx, String msg) {
+    ScaffoldMessenger.of(ctx).showSnackBar(SnackBar(content: Text(msg)));
   }
 
   static double? _doubleValue(dynamic value) {
@@ -1097,17 +1200,19 @@ class _RealtimeKpiGrid extends StatelessWidget {
 
             final width = MediaQuery.of(context).size.width;
             final crossAxisCount = width < 680 ? 1 : 2;
-            final aspectRatio = width < 680
-                ? 2.7
-                : width < 1100
-                    ? 2.8
-                    : 3.3;
+            final cardHeight = width < 380
+                ? 132.0
+                : width < 680
+                    ? 124.0
+                    : null;
+            final aspectRatio = width < 1100 ? 2.8 : 3.3;
 
             return GridView.count(
               crossAxisCount: crossAxisCount,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
               childAspectRatio: aspectRatio,
+              mainAxisExtent: cardHeight,
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               children: [
@@ -1603,17 +1708,23 @@ class _QuickActionsGrid extends StatelessWidget {
     ];
 
     final width = MediaQuery.of(context).size.width;
-    final crossAxisCount = width < 640
-        ? 2
-        : width < 1000
-            ? 3
+    final crossAxisCount = width < 360
+        ? 1
+        : width < 640
+            ? 2
             : 3;
+    final tileHeight = width < 360
+        ? 86.0
+        : width < 640
+            ? 112.0
+            : null;
 
     return GridView.count(
       crossAxisCount: crossAxisCount,
       crossAxisSpacing: 10,
       mainAxisSpacing: 10,
       childAspectRatio: width < 640 ? 1.28 : 2.0,
+      mainAxisExtent: tileHeight,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       children: actions
@@ -1644,6 +1755,8 @@ class _QuickActionsGrid extends StatelessWidget {
                       ),
                       const SizedBox(height: 8),
                       Text(a.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
@@ -1988,18 +2101,21 @@ class _QuickActionsGrid extends StatelessWidget {
                 child: ElevatedButton.icon(
                   onPressed: () async {
                     final csv = await _buildExport(exportType);
+                    final file = await _saveExportFile(exportType, csv);
                     await Clipboard.setData(ClipboardData(text: csv));
                     await FirebaseFirestore.instance
                         .collection('admin_exports')
                         .add({
                       'type': exportType,
                       'rows': csv.split('\n').length - 1,
+                      'filePath': file.path,
                       'createdAt': FieldValue.serverTimestamp(),
                       'createdBy':
                           FirebaseAuth.instance.currentUser?.email ?? 'Admin',
                     });
+                    if (!ctx.mounted || !context.mounted) return;
                     if (Navigator.canPop(ctx)) Navigator.pop(ctx);
-                    _snack(context, "$exportType copied and logged");
+                    _snack(context, "$exportType downloaded: ${file.path}");
                   },
                   icon: const Icon(Icons.download_rounded,
                       color: Colors.white, size: 18),
@@ -2103,6 +2219,29 @@ class _QuickActionsGrid extends StatelessWidget {
       ].map(_csv).join(',');
     });
     return ([header, ...rows]).join('\n');
+  }
+
+  static Future<File> _saveExportFile(String type, String csv) async {
+    final safeType = type.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]+'), '_');
+    final stamp = DateTime.now()
+        .toIso8601String()
+        .replaceAll(RegExp(r'[:.]'), '-')
+        .split('-')
+        .take(5)
+        .join('-');
+    final filename = 'gigmate_${safeType}_$stamp.csv';
+
+    final downloadDir = Directory('/storage/emulated/0/Download');
+    final targetDir =
+        await downloadDir.exists() ? downloadDir : Directory.systemTemp;
+    final file = File('${targetDir.path}${Platform.pathSeparator}$filename');
+    try {
+      return await file.writeAsString(csv, flush: true);
+    } catch (_) {
+      final fallback = File(
+          '${Directory.systemTemp.path}${Platform.pathSeparator}$filename');
+      return fallback.writeAsString(csv, flush: true);
+    }
   }
 
   static String _csv(Object? value) {

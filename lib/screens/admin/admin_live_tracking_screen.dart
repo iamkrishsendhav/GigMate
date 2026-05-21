@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 // ─────────────────────────────────────────────
 //  AdminLiveTrackingScreen — GigMate
@@ -205,153 +206,165 @@ class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen>
   //  SOS ALERT BANNER — live stream
   // ─────────────────────────────────────────
   Widget _buildSOSBanner() {
-  return StreamBuilder<QuerySnapshot>(
-    stream: FirebaseFirestore.instance
-        .collection('alerts')
-        .where('type', isEqualTo: 'SOS')
-        .where('resolved', isEqualTo: false)
-        .orderBy('time', descending: true)
-        .limit(3)
-        .snapshots(),
-    builder: (context, snapshot) {
-
-      // 🔄 Loading state
-      if (snapshot.connectionState == ConnectionState.waiting) {
-        return const Padding(
-          padding: EdgeInsets.all(12),
-          child: Center(
-            child: SizedBox(
-              height: 18,
-              width: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('alerts')
+          .where('type', isEqualTo: 'SOS')
+          .where('resolved', isEqualTo: false)
+          .limit(3)
+          .snapshots(),
+      builder: (context, snapshot) {
+        // 🔄 Loading state
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.all(12),
+            child: Center(
+              child: SizedBox(
+                height: 18,
+                width: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
             ),
-          ),
-        );
-      }
+          );
+        }
 
-      // ❌ Error state
-      if (snapshot.hasError) {
-        return const Padding(
-          padding: EdgeInsets.all(12),
-          child: Text(
-            "Error loading SOS alerts",
-            style: TextStyle(color: Colors.red),
-          ),
-        );
-      }
+        // ❌ Error state
+        if (snapshot.hasError) {
+          return const Padding(
+            padding: EdgeInsets.all(12),
+            child: Text(
+              "Error loading SOS alerts",
+              style: TextStyle(color: Colors.red),
+            ),
+          );
+        }
 
-      // 📭 Empty state
-      if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-        return const SizedBox.shrink();
-      }
+        // 📭 Empty state
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const SizedBox.shrink();
+        }
 
-      final alerts = snapshot.data!.docs;
+        final alerts = snapshot.data!.docs.toList()
+          ..sort((a, b) {
+            final aTime = (a.data() as Map<String, dynamic>)['time'];
+            final bTime = (b.data() as Map<String, dynamic>)['time'];
+            final aDate = aTime is Timestamp ? aTime.toDate() : DateTime(0);
+            final bDate = bTime is Timestamp ? bTime.toDate() : DateTime(0);
+            return bDate.compareTo(aDate);
+          });
 
-      return Container(
-        color: _red.withOpacity(0.08),
-        child: Column(
-          children: [
-            ...alerts.map((alert) {
-              final data = alert.data() as Map<String, dynamic>;
+        return Container(
+          color: _red.withOpacity(0.08),
+          child: Column(
+            children: [
+              ...alerts.map((alert) {
+                final data = alert.data() as Map<String, dynamic>;
 
-              final lat = (data['lat'] ?? 0.0).toDouble();
-              final lng = (data['lng'] ?? 0.0).toDouble();
+                final lat = (data['lat'] as num?)?.toDouble() ?? 0.0;
+                final lng = (data['lng'] as num?)?.toDouble() ?? 0.0;
 
-              final time = data['time'] is Timestamp
-                  ? (data['time'] as Timestamp).toDate()
-                  : DateTime.now();
+                final time = data['time'] is Timestamp
+                    ? (data['time'] as Timestamp).toDate()
+                    : DateTime.now();
 
-              return Container(
-                margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: _red.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: _red.withOpacity(0.3)),
-                ),
-                child: Row(
-                  children: [
-                    // 🚨 Icon
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: _red.withOpacity(0.15),
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.warning_amber_rounded,
-                        color: _red,
-                        size: 20,
-                      ),
-                    ),
-
-                    const SizedBox(width: 10),
-
-                    // 📍 Info
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            "🚨 SOS ALERT",
-                            style: TextStyle(
-                              fontWeight: FontWeight.w800,
-                              color: _red,
-                              fontSize: 13,
-                            ),
-                          ),
-                          Text(
-                            "Lat: ${lat.toStringAsFixed(4)}, "
-                            "Lng: ${lng.toStringAsFixed(4)} • "
-                            "${_timeAgo(time)}",
-                            style: const TextStyle(
-                              fontSize: 11,
-                              color: _red,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    // ✅ Resolve Button
-                    TextButton(
-                      onPressed: () => _resolveSOSAlert(alert.id),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 10, vertical: 6),
-                        backgroundColor: _red.withOpacity(0.1),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
+                return Container(
+                  margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: _red.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(color: _red.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      // 🚨 Icon
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: _red.withOpacity(0.15),
+                          shape: BoxShape.circle,
                         ),
-                      ),
-                      child: const Text(
-                        "Resolve",
-                        style: TextStyle(
+                        child: const Icon(
+                          Icons.warning_amber_rounded,
                           color: _red,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 11,
+                          size: 20,
                         ),
                       ),
-                    ),
-                  ],
-                ),
-              );
-            }),
 
-            // 👇 spacing bottom
-            const SizedBox(height: 8),
-          ],
-        ),
-      );
-    },
-  );
-}
+                      const SizedBox(width: 10),
+
+                      // 📍 Info
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              "🚨 SOS ALERT",
+                              style: TextStyle(
+                                fontWeight: FontWeight.w800,
+                                color: _red,
+                                fontSize: 13,
+                              ),
+                            ),
+                            Text(
+                              "Lat: ${lat.toStringAsFixed(4)}, "
+                              "Lng: ${lng.toStringAsFixed(4)} • "
+                              "${_timeAgo(time)}",
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: _red,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      // ✅ Resolve Button
+                      TextButton(
+                        onPressed: () => _resolveSOSAlert(alert.id),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 10, vertical: 6),
+                          backgroundColor: _red.withOpacity(0.1),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                        ),
+                        child: const Text(
+                          "Resolve",
+                          style: TextStyle(
+                            color: _red,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 11,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }),
+
+              // 👇 spacing bottom
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   Future<void> _resolveSOSAlert(String alertId) async {
-    await FirebaseFirestore.instance
-        .collection('alerts')
-        .doc(alertId)
-        .update({'resolved': true});
+    final alertRef =
+        FirebaseFirestore.instance.collection('alerts').doc(alertId);
+    final alert = await alertRef.get();
+    final workerId = alert.data()?['workerId']?.toString();
+    if (workerId != null && workerId.isNotEmpty) {
+      await FirebaseFirestore.instance
+          .collection('workers')
+          .doc(workerId)
+          .set({'hasSOS': false}, SetOptions(merge: true));
+    }
+    await alertRef.update({'resolved': true, 'read': true});
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -686,18 +699,17 @@ class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen>
                         const SizedBox(height: 6),
 
                         // Vehicle & order row
-                        Row(
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
                           children: [
                             _infoChip(Icons.two_wheeler_rounded, w.vehicleType),
-                            const SizedBox(width: 8),
                             if (w.currentOrderId != null)
                               _infoChip(Icons.receipt_long_outlined,
                                   "#${w.currentOrderId}"),
-                            if (w.lastSeen != null) ...[
-                              const SizedBox(width: 8),
+                            if (w.lastSeen != null)
                               _infoChip(Icons.access_time_rounded,
                                   _timeAgo(w.lastSeen!)),
-                            ],
                           ],
                         ),
                       ],
@@ -726,12 +738,16 @@ class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen>
                     const Icon(Icons.location_on_rounded,
                         color: _primary, size: 14),
                     const SizedBox(width: 6),
-                    Text(
-                      "Lat: ${w.lat!.toStringAsFixed(4)}, "
-                      "Lng: ${w.lng!.toStringAsFixed(4)}",
-                      style: const TextStyle(fontSize: 11, color: _primary),
+                    Expanded(
+                      child: Text(
+                        "Lat: ${w.lat!.toStringAsFixed(4)}, "
+                        "Lng: ${w.lng!.toStringAsFixed(4)}",
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(fontSize: 11, color: _primary),
+                      ),
                     ),
-                    const Spacer(),
+                    const SizedBox(width: 8),
                     // Open in Google Maps
                     GestureDetector(
                       onTap: () => _openInMaps(w.lat!, w.lng!),
@@ -770,12 +786,16 @@ class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen>
                   children: [
                     const Icon(Icons.emergency_rounded, color: _red, size: 14),
                     const SizedBox(width: 6),
-                    const Text("Emergency SOS triggered!",
-                        style: TextStyle(
-                            fontSize: 11,
-                            color: _red,
-                            fontWeight: FontWeight.w700)),
-                    const Spacer(),
+                    const Expanded(
+                      child: Text("Emergency SOS triggered!",
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                              fontSize: 11,
+                              color: _red,
+                              fontWeight: FontWeight.w700)),
+                    ),
+                    const SizedBox(width: 8),
                     GestureDetector(
                       onTap: () => _callWorker(w.phone),
                       child: Container(
@@ -1023,34 +1043,38 @@ class _AdminLiveTrackingScreenState extends State<AdminLiveTrackingScreen>
     }
   }
 
-  void _callWorker(String phone) {
+  Future<void> _callWorker(String phone) async {
     if (phone.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text("No phone number available")),
       );
       return;
     }
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("Calling $phone..."),
-        backgroundColor: _primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
+    final digits = phone.replaceAll(RegExp(r'[^0-9+]'), '');
+    final uri = Uri.parse('tel:$digits');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      return;
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Could not open phone dialer")),
+      );
+    }
   }
 
-  void _openInMaps(double lat, double lng) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text("Opening maps: $lat, $lng"),
-        backgroundColor: _primary,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        margin: const EdgeInsets.all(16),
-      ),
-    );
+  Future<void> _openInMaps(double lat, double lng) async {
+    final uri =
+        Uri.parse("https://www.google.com/maps/search/?api=1&query=$lat,$lng");
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+      return;
+    }
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Could not open maps")),
+      );
+    }
     // ✅ Add url_launcher for real maps:
     // final uri = Uri.parse(
     //   "https://www.google.com/maps/search/?api=1&query=$lat,$lng");

@@ -45,13 +45,16 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                 .toList();
             final workers = workerSnap.data!.docs;
             final orders = allOrders.where(_inSelectedPeriod).toList();
-            final delivered = orders.where((o) => o.status == 'delivered').toList();
-            final revenue = delivered.fold<double>(0, (sum, o) => sum + o.payout);
+            final delivered =
+                orders.where((o) => o.status == 'delivered').toList();
+            final revenue =
+                delivered.fold<double>(0, (sum, o) => sum + o.payout);
             final successRate =
                 orders.isEmpty ? 0 : (delivered.length / orders.length * 100);
             final avgEta = orders.isEmpty
                 ? 0
-                : orders.fold<double>(0, (sum, o) => sum + o.eta) / orders.length;
+                : orders.fold<double>(0, (sum, o) => sum + o.eta) /
+                    orders.length;
 
             return SingleChildScrollView(
               padding: const EdgeInsets.all(16),
@@ -60,23 +63,40 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                 children: [
                   _periodSelector(),
                   const SizedBox(height: 20),
-                  GridView.count(
-                    crossAxisCount: 2,
-                    crossAxisSpacing: 12,
-                    mainAxisSpacing: 12,
-                    childAspectRatio: 3.2,
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    children: [
-                      _AnalyticKpi("₹${revenue.toStringAsFixed(0)}", "Revenue",
-                          "Live", _primary, Icons.currency_rupee_rounded),
-                      _AnalyticKpi("${orders.length}", "Total Orders", "Live",
-                          _blue, Icons.receipt_long_rounded),
-                      _AnalyticKpi("${successRate.toStringAsFixed(0)}%",
-                          "Success Rate", "Live", _green, Icons.check_circle_outline),
-                      _AnalyticKpi("${avgEta.toStringAsFixed(1)} min",
-                          "Avg ETA", "Live", _amber, Icons.schedule_rounded),
-                    ],
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final narrow = constraints.maxWidth < 360;
+                      return GridView.count(
+                        crossAxisCount: narrow ? 1 : 2,
+                        crossAxisSpacing: 12,
+                        mainAxisSpacing: 12,
+                        mainAxisExtent: 116,
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        children: [
+                          _AnalyticKpi(
+                              "₹${revenue.toStringAsFixed(0)}",
+                              "Revenue",
+                              "Live",
+                              _primary,
+                              Icons.currency_rupee_rounded),
+                          _AnalyticKpi("${orders.length}", "Total Orders",
+                              "Live", _blue, Icons.receipt_long_rounded),
+                          _AnalyticKpi(
+                              "${successRate.toStringAsFixed(0)}%",
+                              "Success Rate",
+                              "Live",
+                              _green,
+                              Icons.check_circle_outline),
+                          _AnalyticKpi(
+                              "${avgEta.toStringAsFixed(1)} min",
+                              "Avg ETA",
+                              "Live",
+                              _amber,
+                              Icons.schedule_rounded),
+                        ],
+                      );
+                    },
                   ),
                   const SizedBox(height: 24),
                   _sectionTitle("Orders by Status"),
@@ -100,24 +120,27 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
   }
 
   Widget _periodSelector() {
-    return Row(
-      children: _periods.map((p) {
-        final selected = p == _period;
-        return Padding(
-          padding: const EdgeInsets.only(right: 8),
-          child: ChoiceChip(
-            label: Text(p),
-            selected: selected,
-            selectedColor: _primary,
-            backgroundColor: Colors.white,
-            side: const BorderSide(color: Color(0xFFE2E8F0)),
-            labelStyle: TextStyle(
-                color: selected ? Colors.white : _textMid,
-                fontWeight: FontWeight.w700),
-            onSelected: (_) => setState(() => _period = p),
-          ),
-        );
-      }).toList(),
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: _periods.map((p) {
+          final selected = p == _period;
+          return Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: ChoiceChip(
+              label: Text(p),
+              selected: selected,
+              selectedColor: _primary,
+              backgroundColor: Colors.white,
+              side: const BorderSide(color: Color(0xFFE2E8F0)),
+              labelStyle: TextStyle(
+                  color: selected ? Colors.white : _textMid,
+                  fontWeight: FontWeight.w700),
+              onSelected: (_) => setState(() => _period = p),
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 
@@ -138,9 +161,13 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
   List<_BreakdownItem> _orderBreakdown(List<OrderModel> orders) {
     final total = orders.isEmpty ? 1 : orders.length;
     final delivered = orders.where((o) => o.status == 'delivered').length;
-    final active = orders.where((o) => o.isActiveDelivery || o.status == 'assigned').length;
+    final active = orders
+        .where((o) => o.isActiveDelivery || o.status == 'assigned')
+        .length;
     final pending = orders.where((o) => o.status == 'pending').length;
-    final cancelled = orders.where((o) => o.status == 'cancelled' || o.status == 'rejected').length;
+    final cancelled = orders
+        .where((o) => o.status == 'cancelled' || o.status == 'rejected')
+        .length;
     return [
       _BreakdownItem("Delivered", delivered, _green, delivered / total),
       _BreakdownItem("Active", active, _primary, active / total),
@@ -209,7 +236,8 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
                     style: const TextStyle(
                         fontWeight: FontWeight.w800, color: _textDark)),
                 subtitle: Text("${item.value} delivered orders"),
-                trailing: const Icon(Icons.emoji_events_outlined, color: _amber),
+                trailing:
+                    const Icon(Icons.emoji_events_outlined, color: _amber),
               ),
               if (rank < top.take(5).length)
                 const Divider(height: 1, color: Color(0xFFF1F5F9)),
@@ -267,7 +295,8 @@ class _AdminAnalyticsScreenState extends State<AdminAnalyticsScreen> {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: const [
-          BoxShadow(color: Color(0x07000000), blurRadius: 12, offset: Offset(0, 4)),
+          BoxShadow(
+              color: Color(0x07000000), blurRadius: 12, offset: Offset(0, 4)),
         ],
       ),
       child: child,
@@ -292,7 +321,8 @@ class _AnalyticKpi extends StatelessWidget {
   final Color color;
   final IconData icon;
 
-  const _AnalyticKpi(this.value, this.label, this.change, this.color, this.icon);
+  const _AnalyticKpi(
+      this.value, this.label, this.change, this.color, this.icon);
 
   @override
   Widget build(BuildContext context) {
@@ -303,7 +333,8 @@ class _AnalyticKpi extends StatelessWidget {
         borderRadius: BorderRadius.circular(18),
         border: Border.all(color: const Color(0xFFE2E8F0)),
         boxShadow: const [
-          BoxShadow(color: Color(0x06000000), blurRadius: 10, offset: Offset(0, 4)),
+          BoxShadow(
+              color: Color(0x06000000), blurRadius: 10, offset: Offset(0, 4)),
         ],
       ),
       child: Column(
@@ -335,13 +366,11 @@ class _AnalyticKpi extends StatelessWidget {
               Text(value,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                      color: color,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w900)),
+                      color: color, fontSize: 20, fontWeight: FontWeight.w900)),
               const SizedBox(height: 2),
               Text(label,
-                  style: const TextStyle(
-                      fontSize: 11, color: Color(0xFF94A3B8))),
+                  style:
+                      const TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
             ],
           ),
         ],

@@ -642,6 +642,7 @@ import 'package:gigmate/services/order_service.dart';
 import 'package:gigmate/services/user_service.dart';
 import 'package:gigmate/models/order_model.dart';
 import 'package:gigmate/models/user_model.dart';
+import 'admin_live_tracking_screen.dart';
 
 class AdminOrdersScreen extends StatefulWidget {
   const AdminOrdersScreen({super.key});
@@ -722,101 +723,101 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
       color: Colors.transparent,
       child: Column(
         children: [
-        /// 🔍 SEARCH
-        Padding(
-          padding: const EdgeInsets.all(12),
-          child: TextField(
-            controller: _searchCtrl,
-            onChanged: (v) => setState(() => _searchQuery = v),
-            decoration: InputDecoration(
-              hintText: "Search orders...",
-              prefixIcon: const Icon(Icons.search),
-              filled: true,
-              fillColor: Colors.grey.shade100,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
+          /// 🔍 SEARCH
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: TextField(
+              controller: _searchCtrl,
+              onChanged: (v) => setState(() => _searchQuery = v),
+              decoration: InputDecoration(
+                hintText: "Search orders...",
+                prefixIcon: const Icon(Icons.search),
+                filled: true,
+                fillColor: Colors.grey.shade100,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
               ),
             ),
           ),
-        ),
 
-        /// FILTER
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: _filters.map((f) {
-              final sel = f == _selectedFilter;
-              return GestureDetector(
-                onTap: () => setState(() => _selectedFilter = f),
-                child: Container(
-                  margin: const EdgeInsets.all(6),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: sel ? Colors.teal : Colors.grey.shade200,
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    f,
-                    style: TextStyle(
-                      color: sel ? Colors.white : Colors.black,
+          /// FILTER
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: _filters.map((f) {
+                final sel = f == _selectedFilter;
+                return GestureDetector(
+                  onTap: () => setState(() => _selectedFilter = f),
+                  child: Container(
+                    margin: const EdgeInsets.all(6),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: sel ? Colors.teal : Colors.grey.shade200,
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      f,
+                      style: TextStyle(
+                        color: sel ? Colors.white : Colors.black,
+                      ),
                     ),
                   ),
-                ),
-              );
-            }).toList(),
-          ),
-        ),
-
-        /// 🔥 REALTIME ORDERS
-        Expanded(
-          child: StreamBuilder(
-            stream: _orderService.getAllOrders(),
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              final docs = snapshot.data!.docs;
-
-              final orders = docs.map((doc) {
-                return OrderModel.fromMap(
-                  doc.id,
-                  doc.data(),
                 );
-              }).toList();
-
-              /// FILTER
-              final filtered = orders.where((o) {
-                final status = o.statusText;
-
-                final matchFilter =
-                    _selectedFilter == "All" || status == _selectedFilter;
-
-                final matchSearch = _searchQuery.isEmpty ||
-                    o.id.contains(_searchQuery) ||
-                    o.pickup
-                        .toLowerCase()
-                        .contains(_searchQuery.toLowerCase()) ||
-                    o.drop.toLowerCase().contains(_searchQuery.toLowerCase());
-
-                return matchFilter && matchSearch;
-              }).toList();
-
-              if (filtered.isEmpty) {
-                return const Center(child: Text("No orders found"));
-              }
-
-              return ListView.builder(
-                itemCount: filtered.length,
-                itemBuilder: (_, i) {
-                  return _buildOrderCard(filtered[i]);
-                },
-              );
-            },
+              }).toList(),
+            ),
           ),
-        ),
+
+          /// 🔥 REALTIME ORDERS
+          Expanded(
+            child: StreamBuilder(
+              stream: _orderService.getAllOrders(),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+
+                final docs = snapshot.data!.docs;
+
+                final orders = docs.map((doc) {
+                  return OrderModel.fromMap(
+                    doc.id,
+                    doc.data(),
+                  );
+                }).toList();
+
+                /// FILTER
+                final filtered = orders.where((o) {
+                  final status = o.statusText;
+
+                  final matchFilter =
+                      _selectedFilter == "All" || status == _selectedFilter;
+
+                  final matchSearch = _searchQuery.isEmpty ||
+                      o.id.contains(_searchQuery) ||
+                      o.pickup
+                          .toLowerCase()
+                          .contains(_searchQuery.toLowerCase()) ||
+                      o.drop.toLowerCase().contains(_searchQuery.toLowerCase());
+
+                  return matchFilter && matchSearch;
+                }).toList();
+
+                if (filtered.isEmpty) {
+                  return const Center(child: Text("No orders found"));
+                }
+
+                return ListView.builder(
+                  itemCount: filtered.length,
+                  itemBuilder: (_, i) {
+                    return _buildOrderCard(filtered[i]);
+                  },
+                );
+              },
+            ),
+          ),
         ],
       ),
     );
@@ -826,6 +827,9 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   Widget _buildOrderCard(OrderModel o) {
     final status = o.statusText;
     final color = getStatusColor(status);
+    final isClosed = o.status == 'delivered' ||
+        o.status == 'cancelled' ||
+        o.status == 'rejected';
 
     return Container(
       margin: const EdgeInsets.all(10),
@@ -847,9 +851,13 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           /// HEADER
           Row(
             children: [
-              Text("Order #${o.id}",
-                  style: const TextStyle(fontWeight: FontWeight.bold)),
-              const Spacer(),
+              Expanded(
+                child: Text("Order #${o.id}",
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(width: 8),
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -875,8 +883,11 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
             children: [
               _metaChip(Icons.currency_rupee_rounded,
                   "Payout ₹${o.payout.toStringAsFixed(0)}"),
-              _metaChip(Icons.near_me_outlined,
-                  o.distance > 0 ? "${o.distance.toStringAsFixed(1)} km" : "--"),
+              _metaChip(
+                  Icons.near_me_outlined,
+                  o.distance > 0
+                      ? "${o.distance.toStringAsFixed(1)} km"
+                      : "--"),
               _metaChip(Icons.schedule_rounded,
                   o.eta > 0 ? "${o.eta.toStringAsFixed(0)} min" : "--"),
             ],
@@ -889,22 +900,42 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           const SizedBox(height: 12),
 
           /// ACTIONS
-          Row(
-            children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () => _showAssignDialog(o),
-                  child: const Text("Assign"),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final stackActions = constraints.maxWidth < 280;
+              final assignButton = ElevatedButton(
+                onPressed: () => _showAssignDialog(o),
+                child: const Text("Assign"),
+              );
+              final trackButton = ElevatedButton(
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute(
+                      builder: (_) => const AdminLiveTrackingScreen()),
                 ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () {},
-                  child: const Text("Track"),
-                ),
-              ),
-            ],
+                child: const Text("Track"),
+              );
+              if (stackActions) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (!isClosed) ...[
+                      assignButton,
+                      const SizedBox(height: 8),
+                    ],
+                    trackButton,
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  if (!isClosed) ...[
+                    Expanded(child: assignButton),
+                    const SizedBox(width: 8),
+                  ],
+                  Expanded(child: trackButton),
+                ],
+              );
+            },
           ),
         ],
       ),
@@ -925,14 +956,22 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
           Icon(icon, size: 14, color: Colors.teal),
           const SizedBox(width: 4),
           Text(text,
-              style: const TextStyle(
-                  fontSize: 12, fontWeight: FontWeight.w700)),
+              style:
+                  const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)),
         ],
       ),
     );
   }
 
   void _showAssignDialog(OrderModel order) {
+    if (order.status == 'delivered' ||
+        order.status == 'cancelled' ||
+        order.status == 'rejected') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Completed orders cannot be assigned")),
+      );
+      return;
+    }
     showModalBottomSheet(
       context: context,
       builder: (_) {
@@ -961,7 +1000,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                         workerId: user.uid,
                       );
 
-                      Navigator.pop(context);
+                      if (context.mounted) Navigator.pop(context);
                     },
                     child: const Text("Assign"),
                   ),

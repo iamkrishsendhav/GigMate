@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:gigmate/services/user_service.dart';
 
 class AdminWorkersScreen extends StatefulWidget {
   const AdminWorkersScreen({super.key});
@@ -46,49 +47,50 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
             return const Center(child: CircularProgressIndicator());
           }
 
-        final workers = snapshot.data!.docs
-            .map((doc) => _Worker.fromDoc(doc.id, doc.data()))
-            .where(_matches)
-            .toList();
-        final sosList = workers.where((w) => w.hasSOS).toList();
+          final workers = snapshot.data!.docs
+              .map((doc) => _Worker.fromDoc(doc.id, doc.data()))
+              .where(_matches)
+              .toList();
+          final sosList = workers.where((w) => w.hasSOS).toList();
 
           return Column(
             children: [
-            if (sosList.isNotEmpty) _sosBanner(sosList),
-            _searchBar(),
-            _filterRow(snapshot.data!.docs
-                .map((doc) => _Worker.fromDoc(doc.id, doc.data()))
-                .any((w) => w.hasSOS)),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text("${workers.length} workers",
-                      style: const TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.w800,
-                          color: _textMid)),
-                  TextButton.icon(
-                    onPressed: () => _showAddWorkerDialog(),
-                    icon: const Icon(Icons.person_add_alt_1_rounded, size: 16),
-                    label: const Text("Add Worker"),
-                    style: TextButton.styleFrom(foregroundColor: _primary),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: workers.isEmpty
-                  ? _stateMessage(Icons.people_outline_rounded,
-                      "No workers found")
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                      itemCount: workers.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 12),
-                      itemBuilder: (_, i) => _workerCard(workers[i]),
+              if (sosList.isNotEmpty) _sosBanner(sosList),
+              _searchBar(),
+              _filterRow(snapshot.data!.docs
+                  .map((doc) => _Worker.fromDoc(doc.id, doc.data()))
+                  .any((w) => w.hasSOS)),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text("${workers.length} workers",
+                        style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: _textMid)),
+                    TextButton.icon(
+                      onPressed: () => _showAddWorkerDialog(),
+                      icon:
+                          const Icon(Icons.person_add_alt_1_rounded, size: 16),
+                      label: const Text("Add Worker"),
+                      style: TextButton.styleFrom(foregroundColor: _primary),
                     ),
-            ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: workers.isEmpty
+                    ? _stateMessage(
+                        Icons.people_outline_rounded, "No workers found")
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                        itemCount: workers.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 12),
+                        itemBuilder: (_, i) => _workerCard(workers[i]),
+                      ),
+              ),
             ],
           );
         },
@@ -222,7 +224,8 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
         border: Border.all(
             color: w.hasSOS ? _red.withOpacity(0.35) : const Color(0xFFE2E8F0)),
         boxShadow: const [
-          BoxShadow(color: Color(0x07000000), blurRadius: 12, offset: Offset(0, 4)),
+          BoxShadow(
+              color: Color(0x07000000), blurRadius: 12, offset: Offset(0, 4)),
         ],
       ),
       child: Column(
@@ -236,8 +239,9 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
                     CircleAvatar(
                       radius: 26,
                       backgroundColor: _primary.withOpacity(0.1),
-                      backgroundImage:
-                          w.photoUrl.isNotEmpty ? NetworkImage(w.photoUrl) : null,
+                      backgroundImage: w.photoUrl.isNotEmpty
+                          ? NetworkImage(w.photoUrl)
+                          : null,
                       child: w.photoUrl.isEmpty
                           ? Text(w.initial,
                               style: const TextStyle(
@@ -284,8 +288,10 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
                         spacing: 10,
                         runSpacing: 4,
                         children: [
-                          _inlineMeta(_statusIcon(w.status), w.status, statusColor),
-                          _inlineMeta(Icons.two_wheeler_rounded, w.vehicle, _textLight),
+                          _inlineMeta(
+                              _statusIcon(w.status), w.status, statusColor),
+                          _inlineMeta(
+                              Icons.two_wheeler_rounded, w.vehicle, _textLight),
                         ],
                       ),
                     ],
@@ -304,7 +310,8 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
             ),
             child: Row(
               children: [
-                _workerStat(Icons.receipt_long_rounded, "${w.totalOrders}", "Orders"),
+                _workerStat(
+                    Icons.receipt_long_rounded, "${w.totalOrders}", "Orders"),
                 _divider(),
                 _workerStat(Icons.favorite_outline, w.health, "Health",
                     color: healthColor),
@@ -339,8 +346,8 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
         Icon(icon, size: 13, color: color),
         const SizedBox(width: 4),
         Text(text,
-            style:
-                TextStyle(fontSize: 12, color: color, fontWeight: FontWeight.w700)),
+            style: TextStyle(
+                fontSize: 12, color: color, fontWeight: FontWeight.w700)),
       ],
     );
   }
@@ -349,7 +356,8 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
     return Container(
       margin: const EdgeInsets.only(left: 6),
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(6)),
+      decoration:
+          BoxDecoration(color: color, borderRadius: BorderRadius.circular(6)),
       child: Text(text,
           style: const TextStyle(
               color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900)),
@@ -375,7 +383,8 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
     );
   }
 
-  Widget _workerStat(IconData icon, String value, String label, {Color? color}) {
+  Widget _workerStat(IconData icon, String value, String label,
+      {Color? color}) {
     return Expanded(
       child: Column(
         children: [
@@ -394,7 +403,8 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
     );
   }
 
-  Widget _divider() => Container(width: 1, height: 32, color: const Color(0xFFE2E8F0));
+  Widget _divider() =>
+      Container(width: 1, height: 32, color: const Color(0xFFE2E8F0));
 
   Widget _actionBtn(IconData icon, String label, Color color,
       {bool filled = false, VoidCallback? onTap}) {
@@ -434,15 +444,183 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
           const SizedBox(height: 12),
           Text(text,
               style: const TextStyle(
-                  fontSize: 16, fontWeight: FontWeight.w800, color: _textLight)),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                  color: _textLight)),
         ],
       ),
     );
   }
 
   void _showAddWorkerDialog() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text("Create workers from the Add Worker action on Dashboard")),
+    final nameCtrl = TextEditingController();
+    final emailCtrl = TextEditingController();
+    final phoneCtrl = TextEditingController();
+    String vehicle = "Bike";
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => StatefulBuilder(builder: (ctx, setSt) {
+        return Padding(
+          padding:
+              EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE2E8F0),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                  ),
+                  const Text("Add New Worker",
+                      style:
+                          TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+                  const SizedBox(height: 18),
+                  _addWorkerField("Full Name", nameCtrl, Icons.person_outline),
+                  const SizedBox(height: 12),
+                  _addWorkerField("Email", emailCtrl, Icons.email_outlined,
+                      type: TextInputType.emailAddress),
+                  const SizedBox(height: 12),
+                  _addWorkerField("Phone", phoneCtrl, Icons.phone_outlined,
+                      type: TextInputType.phone),
+                  const SizedBox(height: 16),
+                  const Text("Vehicle Type",
+                      style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700,
+                          color: _textMid)),
+                  const SizedBox(height: 8),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children:
+                          ["Bike", "Scooter", "Cycle", "Car", "Van"].map((v) {
+                        final selected = vehicle == v;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Text(v),
+                            selected: selected,
+                            selectedColor: _primary,
+                            backgroundColor: const Color(0xFFF1F5F9),
+                            side: BorderSide.none,
+                            labelStyle: TextStyle(
+                              color: selected ? Colors.white : _textMid,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            onSelected: (_) => setSt(() => vehicle = v),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 50,
+                    child: ElevatedButton(
+                      onPressed: () async {
+                        final name = nameCtrl.text.trim();
+                        final email = emailCtrl.text.trim();
+                        if (name.isEmpty || email.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text("Name and email are required")),
+                          );
+                          return;
+                        }
+
+                        final workerId =
+                            DateTime.now().millisecondsSinceEpoch.toString();
+                        await UserService().createUser(
+                          uid: workerId,
+                          name: name,
+                          email: email,
+                          role: "worker",
+                        );
+                        await FirebaseFirestore.instance
+                            .collection('workers')
+                            .doc(workerId)
+                            .set({
+                          'phone': phoneCtrl.text.trim(),
+                          'vehicleType': vehicle,
+                          'vehicle': vehicle,
+                          'status': 'Active',
+                          'health': 'Good',
+                          'hasSOS': false,
+                          'updatedAt': FieldValue.serverTimestamp(),
+                        }, SetOptions(merge: true));
+
+                        if (!mounted) return;
+                        if (ctx.mounted && Navigator.canPop(ctx)) {
+                          Navigator.pop(ctx);
+                        }
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                                content: Text("Worker added successfully")),
+                          );
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: _primary,
+                        foregroundColor: Colors.white,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: const Text("Add Worker",
+                          style: TextStyle(fontWeight: FontWeight.w800)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }),
+    );
+  }
+
+  Widget _addWorkerField(
+    String hint,
+    TextEditingController controller,
+    IconData icon, {
+    TextInputType type = TextInputType.text,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: type,
+      decoration: InputDecoration(
+        hintText: hint,
+        prefixIcon: Icon(icon, color: _primary, size: 20),
+        filled: true,
+        fillColor: const Color(0xFFF8FAFC),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: _primary, width: 1.4),
+        ),
+      ),
     );
   }
 
@@ -497,8 +675,8 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
                             style: const TextStyle(
                                 fontSize: 18, fontWeight: FontWeight.w900)),
                         Text(w.id,
-                            style:
-                                const TextStyle(color: _textLight, fontSize: 12)),
+                            style: const TextStyle(
+                                color: _textLight, fontSize: 12)),
                       ]),
                 ),
               ]),
@@ -531,7 +709,9 @@ class _AdminWorkersScreenState extends State<AdminWorkersScreen> {
           Expanded(
             child: Text(value,
                 style: const TextStyle(
-                    fontSize: 13, fontWeight: FontWeight.w800, color: _textDark)),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
+                    color: _textDark)),
           ),
         ],
       ),
